@@ -1,0 +1,18 @@
+name: BatchBuddy
+options:
+  minimumXcodeGenVersion: 2.38.0
+settings:
+  base:
+    IPHONEOS_DEPLOYMENT_TARGET: '18.0'
+targets:
+  BatchBuddy:
+    type: application
+    platform: iOS
+    sources: [BatchBuddy]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.batchbuddy.advisor
+        PRODUCT_NAME: BatchBuddy
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        SWIFT_VERSION: 6.0

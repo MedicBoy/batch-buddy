@@ -1,0 +1,25 @@
+name: Build unsigned iPhone IPA
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-unsigned-ipa.yml'
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Xcode project
+        run: brew install xcodegen && cd ios && xcodegen generate
+      - name: Build without Apple signing
+        run: xcodebuild -project ios/BatchBuddy.xcodeproj -scheme BatchBuddy -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+      - name: Package IPA
+        run: mkdir -p package/Payload && cp -R build/Build/Products/Release-iphoneos/BatchBuddy.app package/Payload/ && cd package && zip -r ../BatchBuddy-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BatchBuddy-unsigned-ipa
+          path: BatchBuddy-unsigned.ipa
+          retention-days: 1

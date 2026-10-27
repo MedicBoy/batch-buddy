@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Batch Buddy POC</title><link rel="stylesheet" href="/styles.css"></head>
+  <body>
+    <main>
+      <p class="eyebrow">LOCAL PROOF OF CONCEPT</p>
+      <h1>Batch Buddy</h1>
+      <p class="subtitle">Advice only. You choose whether to accept or reject every batch.</p>
+      <section class="card">
+        <label for="offerText">Paste an offer summary <span>(optional)</span></label>
+        <textarea id="offerText" placeholder="$24.50 batch, 7.2 miles, 18 items"></textarea>
+        <button id="parseButton" class="secondary">Fill from pasted text</button>
+      </section>
+      <section class="card grid">
+        <label>Batch pay<input id="pay" type="number" step="0.01" min="0" value="24.50"></label>
+        <label>Total miles<input id="miles" type="number" step="0.1" min="0" value="7.2"></label>
+        <label>Items<input id="items" type="number" step="1" min="0" value="18"></label>
+        <label>Estimated minutes <span>(optional)</span><input id="minutes" type="number" step="1" min="1"></label>
+      </section>
+      <section class="card grid settings">
+        <label>Minimum $/mile<input id="minimumPayPerMile" type="number" step="0.05" min="0" value="1.25"></label>
+        <label>Minimum $/hour<input id="minimumHourlyRate" type="number" step="1" min="0" value="20"></label>
+        <label>Vehicle cost/mile<input id="costPerMile" type="number" step="0.01" min="0" value="0.25"></label>
+      </section>
+      <button id="analyzeButton" class="primary">Analyze batch</button>
+      <section id="result" class="card result" aria-live="polite" hidden></section>
+      <p class="privacy">This POC runs locally on this PC. It does not sign in to Instacart, control it, or upload screen content.</p>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
