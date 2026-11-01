@@ -49,9 +49,9 @@ targets:
   BatchBuddyTests:
     type: bundle.unit-test
     platform: iOS
-    sources: [BatchBuddyTests]
-    dependencies:
-      - target: BatchBuddy
+    sources:
+      - BatchBuddyTests
+      - BatchBuddy/OfferAdvisor.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.batchbuddy.advisor.tests
