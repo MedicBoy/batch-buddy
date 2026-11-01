@@ -48,3 +48,12 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.batchbuddy.advisor.tests
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_VERSION: 6.0
+
+schemes:
+  BatchBuddy:
+    build:
+      targets:
+        BatchBuddy: all
+    test:
+      targets:
+        - BatchBuddyTests
