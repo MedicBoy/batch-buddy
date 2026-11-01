@@ -114,11 +114,17 @@ def parse_offer_text(response_text: str) -> tuple[float | None, float | None, in
     distance = _payload_number(payload, (r"(?:distance|mileage|route[_-]?distance|drive[_-]?distance|kilomet(?:er|re)s?|miles?).*(?:km|kilomet|mile)?$",))
     items = _payload_number(payload, (r"(?:items?|units?|quantity|item[_-]?count|number[_-]?of[_-]?items)(?:$|\.)",))
 
+    lower_text = response_text.lower()
+    has_offer_context = any(token in lower_text for token in ("instacart", "shop", "deliver", "batch", "offer", "items", "units"))
     currency_values = [float(match.group(1).replace(",", "")) for match in re.finditer(r"(?:\$|CAD\s*)\s*([0-9]+(?:[,.][0-9]{1,2})?)", response_text, re.IGNORECASE)]
     if pay is None:
-        pay = currency_values[0] if currency_values else _first_number((r"(?:pay|earnings|amount|offer)[^\d]{0,45}([0-9]+(?:\.[0-9]{1,2})?)",), response_text)
+        if len(currency_values) == 1 and has_offer_context:
+            pay = currency_values[0]
+        elif not currency_values:
+            pay = _first_number((r"(?:pay|earnings|amount|offer)[^\d]{0,45}([0-9]+(?:\.[0-9]{1,2})?)",), response_text)
 
-    distance_match = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*(km|kilometers?|kilometres?|mi|miles?)\b", response_text, re.IGNORECASE)
+    distance_matches = list(re.finditer(r"([0-9]+(?:\.[0-9]+)?)\s*(km|kilometers?|kilometres?|mi|miles?)\b", response_text, re.IGNORECASE))
+    distance_match = distance_matches[0] if len(distance_matches) == 1 else None
     if distance is None and distance_match:
         distance = float(distance_match.group(1))
         if distance_match.group(2).lower().startswith(("mi", "mile")):
@@ -126,7 +132,8 @@ def parse_offer_text(response_text: str) -> tuple[float | None, float | None, in
     if distance is None:
         distance = _first_number((r"(?:distance|mileage|route)[^\d]{0,45}([0-9]+(?:\.[0-9]+)?)",), response_text)
 
-    item_match = re.search(r"([0-9]+)\s*(?:items?|units?)\b", response_text, re.IGNORECASE)
+    item_matches = list(re.finditer(r"([0-9]+)\s*(?:items?|units?)\b", response_text, re.IGNORECASE))
+    item_match = item_matches[0] if len(item_matches) == 1 else None
     if items is None and item_match:
         items = float(item_match.group(1))
     if items is None:
