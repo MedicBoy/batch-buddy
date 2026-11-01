@@ -99,21 +99,25 @@ struct ContentView: View {
             Text("Prepare a Live Activity first, then use Apple's broadcast control below. Switch to Instacart Shopper after the broadcast starts. Batch Buddy samples the screen locally and never stores or uploads frames.")
                 .font(.caption).foregroundStyle(.secondary)
             Button {
-                guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-                    monitorStatus = "Live Activities are disabled. Enable them in iPhone Settings, then try again."
-                    return
+                monitorPrepared = false
+                monitorStatus = "Preparing Live Activity…"
+                Task { @MainActor in
+                    do {
+                        try await BatchBuddyActivityManager.startMonitoring(
+                            gasPricePerLitre: gasPricePerLitre,
+                            fuelLitresPer100Km: fuelLitresPer100Km,
+                            maintenanceCostPerKm: maintenanceCostPerKm,
+                            minimumPayPerKilometre: minimumPayPerKilometre,
+                            minimumHourlyRate: minimumHourlyRate
+                        )
+                        monitorPrepared = true
+                        monitorStatus = "Live Activity ready. Tap Start screen broadcast below, choose Batch Buddy, then open Shopper."
+                    } catch {
+                        monitorStatus = "Could not prepare Live Activity: \(error.localizedDescription)"
+                    }
                 }
-                BatchBuddyActivityManager.startMonitoring(
-                    gasPricePerLitre: gasPricePerLitre,
-                    fuelLitresPer100Km: fuelLitresPer100Km,
-                    maintenanceCostPerKm: maintenanceCostPerKm,
-                    minimumPayPerKilometre: minimumPayPerKilometre,
-                    minimumHourlyRate: minimumHourlyRate
-                )
-                monitorPrepared = true
-                monitorStatus = "Live Activity prepared. Tap the iOS broadcast control to start screen monitoring."
             } label: {
-                Label("Prepare live monitor", systemImage: "car.side").font(.subheadline.weight(.bold))
+                Label("Activate live monitor", systemImage: "car.side").font(.subheadline.weight(.bold))
                     .frame(maxWidth: .infinity).padding(.vertical, 12)
             }
             .buttonStyle(.borderedProminent).tint(.cyan)
@@ -124,9 +128,12 @@ struct ContentView: View {
                         Text("Tap the system control, choose Batch Buddy, and confirm Start Broadcast.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
-                    Spacer()
-                    BroadcastPickerButton().frame(width: 58, height: 58)
+                    Spacer(minLength: 8)
+                    BroadcastPickerButton()
+                        .frame(width: 58, height: 58)
+                        .background(.cyan.opacity(0.14), in: RoundedRectangle(cornerRadius: 14))
                 }
+                .padding(.top, 4)
             }
             Text(monitorStatus).font(.caption).foregroundStyle(.secondary)
             if !liveActivityPushToken.isEmpty {

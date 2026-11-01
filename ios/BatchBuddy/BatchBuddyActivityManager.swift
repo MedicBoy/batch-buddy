@@ -5,50 +5,57 @@ import Foundation
 enum BatchBuddyActivityManager {
     static let pushTokenKey = "batchBuddy.liveActivityPushToken"
 
+    enum StartError: LocalizedError {
+        case disabled
+
+        var errorDescription: String? {
+            switch self {
+            case .disabled:
+                return "Live Activities are disabled for Batch Buddy. Enable them in iPhone Settings and try again."
+            }
+        }
+    }
+
     static func startMonitoring(
         gasPricePerLitre: Double,
         fuelLitresPer100Km: Double,
         maintenanceCostPerKm: Double,
         minimumPayPerKilometre: Double,
         minimumHourlyRate: Double
-    ) {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-
-        Task {
-            for activity in Activity<BatchBuddyAttributes>.activities {
-                await activity.end(nil, dismissalPolicy: .immediate)
-            }
-
-            let attributes = makeAttributes(
-                gasPricePerLitre: gasPricePerLitre,
-                fuelLitresPer100Km: fuelLitresPer100Km,
-                maintenanceCostPerKm: maintenanceCostPerKm,
-                minimumPayPerKilometre: minimumPayPerKilometre,
-                minimumHourlyRate: minimumHourlyRate
-            )
-            let initialState = BatchBuddyAttributes.ContentState(
-                recommendation: "SCANNING",
-                pay: 0,
-                kilometres: 0,
-                items: 0,
-                estimatedNet: 0,
-                hourlyRate: 0,
-                score: 0,
-                message: "Waiting for a visible Instacart offer. Start the screen broadcast, then open Shopper.",
-                updatedAt: Date()
-            )
-
-            do {
-                let activity = try Activity.request(
-                    attributes: attributes,
-                    content: ActivityContent(state: initialState, staleDate: Date().addingTimeInterval(30 * 60)),
-                    pushType: .token
-                )
-                observePushToken(for: activity)
-            } catch {
-                // The app remains usable if Live Activities are disabled or unavailable.
-            }
+    ) async throws {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+            throw StartError.disabled
         }
+
+        for activity in Activity<BatchBuddyAttributes>.activities {
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
+
+        let attributes = makeAttributes(
+            gasPricePerLitre: gasPricePerLitre,
+            fuelLitresPer100Km: fuelLitresPer100Km,
+            maintenanceCostPerKm: maintenanceCostPerKm,
+            minimumPayPerKilometre: minimumPayPerKilometre,
+            minimumHourlyRate: minimumHourlyRate
+        )
+        let initialState = BatchBuddyAttributes.ContentState(
+            recommendation: "SCANNING",
+            pay: 0,
+            kilometres: 0,
+            items: 0,
+            estimatedNet: 0,
+            hourlyRate: 0,
+            score: 0,
+            message: "Waiting for a visible Instacart offer. Start the screen broadcast, then open Shopper.",
+            updatedAt: Date()
+        )
+
+        let activity = try Activity.request(
+            attributes: attributes,
+            content: ActivityContent(state: initialState, staleDate: Date().addingTimeInterval(30 * 60)),
+            pushType: .token
+        )
+        observePushToken(for: activity)
     }
 
     static func publish(
