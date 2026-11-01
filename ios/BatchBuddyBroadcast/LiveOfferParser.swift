@@ -1,13 +1,13 @@
 import Foundation
 
-struct LiveOfferSnapshot {
+struct LiveOfferSnapshot: Sendable {
     let payCAD: Double
     let kilometres: Double
     let itemCount: Int?
     let isAmbiguous: Bool
     let reason: String
     var fingerprint: String {
-        "\(payCAD.rounded(toPlaces: 2))|\(kilometres.rounded(toPlaces: 1))|\(itemCount.map(String.init) ?? "?")"
+        "\(payCAD.rounded(toPlaces: 2))|\(kilometres.rounded(toPlaces: 1))|\(itemCount.map { String($0) } ?? "?")"
     }
 }
 
