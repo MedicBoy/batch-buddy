@@ -5,6 +5,7 @@ import os
 import queue
 import sys
 import threading
+import webbrowser
 from datetime import datetime
 from pathlib import Path
 
@@ -389,6 +390,24 @@ class BatchBuddyWindow(QMainWindow):
         smith_actions.addWidget(self.smith_test_status)
         smith_actions.addStretch(1)
         smith_layout.addLayout(smith_actions)
+        smith_live_grid = QGridLayout()
+        smith_live_grid.setSpacing(12)
+        self.smith_connection_value, self.smith_connection_detail = self._smith_status_panel("Connection", "Not tested", "Use the test button to verify the API key.")
+        self.smith_delivery_value, self.smith_delivery_detail = self._smith_status_panel("Last delivery", "No delivery yet", "Waiting for a valid batch.")
+        self.smith_activity_value, self.smith_activity_detail = self._smith_status_panel("Live Activity", "Standby", "No current native activity update.")
+        self.smith_metrics_value, self.smith_metrics_detail = self._smith_status_panel("Metric widgets", "—", "Latest pay · net · hourly")
+        smith_live_grid.addWidget(self.smith_connection_value.parentWidget(), 0, 0)
+        smith_live_grid.addWidget(self.smith_delivery_value.parentWidget(), 0, 1)
+        smith_live_grid.addWidget(self.smith_activity_value.parentWidget(), 1, 0)
+        smith_live_grid.addWidget(self.smith_metrics_value.parentWidget(), 1, 1)
+        smith_layout.addLayout(smith_live_grid)
+        self.smith_log = QLabel("Delivery log\nNo ActivitySmith events recorded in this session.")
+        self.smith_log.setObjectName("muted")
+        self.smith_log.setWordWrap(True)
+        smith_layout.addWidget(self.smith_log)
+        open_smith = QPushButton("Open ActivitySmith")
+        open_smith.clicked.connect(lambda: webbrowser.open("https://activitysmith.com/app"))
+        smith_layout.addWidget(open_smith, alignment=Qt.AlignmentFlag.AlignLeft)
         smith_grid = QGridLayout()
         smith_grid.setSpacing(12)
         for index, (title, detail) in enumerate((("Push notifications", "Immediate offer alerts with Accept and Reject actions."), ("Live Activity", "Persistent current-batch state on your iPhone."), ("Metric widgets", "Latest pay, net estimate, and hourly estimate."), ("Tags + metadata", "Searchable batch context in ActivitySmith history."))):
@@ -407,6 +426,24 @@ class BatchBuddyWindow(QMainWindow):
         smith_layout.addLayout(smith_grid)
         smith_layout.addStretch(1)
         tabs.insertTab(1, smith_page, "ActivitySmith")
+
+    def _smith_status_panel(self, title: str, value: str, detail: str) -> tuple[QLabel, QLabel]:
+        panel = QFrame()
+        panel.setObjectName("surface")
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(15, 13, 15, 13)
+        heading = QLabel(title.upper())
+        heading.setObjectName("panelTitle")
+        value_label = QLabel(value)
+        value_label.setStyleSheet(f"color:{CYAN}; font-size:14pt; font-weight:700;")
+        detail_label = QLabel(detail)
+        detail_label.setObjectName("muted")
+        detail_label.setWordWrap(True)
+        layout.addWidget(heading)
+        layout.addWidget(value_label)
+        layout.addWidget(detail_label)
+        value_label.setProperty("panel", panel)
+        return value_label, detail_label
 
     def _settings_card(self, title: str, fields: list[tuple[str, str, bool]], apns: bool = False) -> QFrame:
         card = QFrame()
@@ -476,6 +513,11 @@ class BatchBuddyWindow(QMainWindow):
             smith = ActivitySmith(api_key=api_key)
             smith.notifications.send(title="Batch Buddy connected", message="ActivitySmith is connected and ready for live batch alerts.", tags=["batch-buddy", "connection-test"])
             self.smith_test_status.setText("Test sent successfully. Check your iPhone.")
+            self.smith_connection_value.setText("CONNECTED")
+            self.smith_connection_detail.setText("API key accepted by ActivitySmith.")
+            self.smith_delivery_value.setText("TEST SENT")
+            self.smith_delivery_detail.setText("Check the paired ActivitySmith iPhone.")
+            self.smith_log.setText("Delivery log\n✓ Test notification sent successfully.")
             self.inspector.setText("Live Activity\nStand by for the next offer.\n\nActivitySmith\nConnected · test sent")
         except Exception as error:
             self.smith_test_status.setText(f"Test failed: {error}")
@@ -499,6 +541,12 @@ class BatchBuddyWindow(QMainWindow):
         self.stop_button.setEnabled(True)
         self.radar_widget.set_signal(0.35, True)
         self.inspector.setText("Live Activity\nWaiting for the next valid offer.\n\nActivitySmith\nConfigured · monitor running")
+        self.smith_connection_value.setText("MONITORING")
+        self.smith_connection_detail.setText("Credentials loaded; waiting for a valid offer.")
+        self.smith_delivery_value.setText("WAITING")
+        self.smith_delivery_detail.setText("No valid batch has been delivered yet.")
+        self.smith_activity_value.setText("STANDBY")
+        self.smith_activity_detail.setText("Will update when a valid batch is parsed.")
 
     def _stop(self) -> None:
         if self.stop_event:
@@ -515,6 +563,9 @@ class BatchBuddyWindow(QMainWindow):
                     self.status_line.setText(str(payload))
                     if "ActivitySmith" in str(payload) and ("sent" in str(payload) or "updated" in str(payload)):
                         self.inspector.setText("Live Activity\nCurrent offer channel ready.\n\nActivitySmith\nConnected · live update sent")
+                        self.smith_delivery_value.setText("DELIVERED")
+                        self.smith_delivery_detail.setText(str(payload))
+                        self.smith_log.setText(f"Delivery log\n✓ {payload}")
                 elif isinstance(payload, BatchResult):
                     result = payload
                     self.history.record(result)
@@ -528,6 +579,10 @@ class BatchBuddyWindow(QMainWindow):
                     self.signal_bar.setValue(int(signal * 100))
                     self.radar_widget.set_signal(signal, True)
                     self.inspector.setText(f"Live Activity\n{result.recommendation}\n\nPay\n${result.pay:.2f}\n\nNet estimate\n${result.net_estimate:.2f}\n\nHourly estimate\n${result.hourly_estimate:.2f}\n\nActivitySmith\nUpdated")
+                    self.smith_activity_value.setText("UPDATED")
+                    self.smith_activity_detail.setText("Current batch Live Activity state sent.")
+                    self.smith_metrics_value.setText(f"${result.pay:.2f}  ·  ${result.net_estimate:.2f}  ·  ${result.hourly_estimate:.2f}/hr")
+                    self.smith_metrics_detail.setText("Pay · net estimate · hourly estimate")
                     self._refresh_stats()
                     self._refresh_history()
         except queue.Empty:
