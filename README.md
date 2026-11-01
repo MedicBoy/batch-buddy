@@ -13,7 +13,9 @@ Run the checks with `npm test`.
 ## What works today
 
 - Pasting a visible offer summary or entering offer values manually.
+- Choosing a batch screenshot or photo, then scanning its visible text locally in the browser before reviewing the extracted values.
 - Custom earnings, mileage, and vehicle-cost thresholds.
+- Canadian fuel and maintenance-cost estimates, with editable vehicle and gas-price settings stored on the device.
 - A local calculation and optional spoken advice.
 - No Instacart login, API calls, account interaction, clicking, accepting, rejecting, or screen upload.
 

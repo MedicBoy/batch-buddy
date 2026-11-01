@@ -6,6 +6,7 @@ test("recommends take for an offer meeting both targets", () => {
   const result = analyzeOffer({ pay: 30, miles: 10, items: 10 });
   assert.equal(result.recommendation, "TAKE");
   assert.equal(result.payPerMile, 3);
+  assert.ok(result.estimatedFuelCost > 0);
 });
 
 test("recommends skip for an offer missing both targets", () => {
@@ -14,5 +15,5 @@ test("recommends skip for an offer missing both targets", () => {
 });
 
 test("parses a pasted offer summary", () => {
-  assert.deepEqual(parseOfferText("$24.50 batch, 7.2 miles, 18 items"), { pay: 24.5, miles: 7.2, items: 18 });
+  assert.deepEqual(parseOfferText("$24.50 batch, 7.2 miles, 18 items, 2 stores"), { pay: 24.5, miles: 7.2, items: 18, stores: 2 });
 });

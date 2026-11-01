@@ -1,11 +1,20 @@
 <!doctype html>
 <html lang="en">
-  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Batch Buddy POC</title><link rel="stylesheet" href="/styles.css"></head>
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Batch Buddy POC</title><link rel="stylesheet" href="/styles.css"><script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script></head>
   <body>
     <main>
       <p class="eyebrow">LOCAL PROOF OF CONCEPT</p>
       <h1>Batch Buddy</h1>
       <p class="subtitle">Advice only. You choose whether to accept or reject every batch.</p>
+      <section class="card scan-card">
+        <p class="section-label">PHOTO SCAN</p>
+        <label for="batchImage">Choose a screenshot or photo of a batch</label>
+        <input id="batchImage" type="file" accept="image/*">
+        <img id="imagePreview" alt="Selected batch image preview" hidden>
+        <button id="scanButton" class="secondary" disabled>Scan image</button>
+        <p id="scanStatus" class="hint">Choose an image, then scan. Text recognition runs in this browser; check every result before deciding.</p>
+        <details id="scanDetails" hidden><summary>Text found in image</summary><pre id="scanText"></pre></details>
+      </section>
       <section class="card">
         <label for="offerText">Paste an offer summary <span>(optional)</span></label>
         <textarea id="offerText" placeholder="$24.50 batch, 7.2 miles, 18 items"></textarea>
@@ -15,16 +24,26 @@
         <label>Batch pay<input id="pay" type="number" step="0.01" min="0" value="24.50"></label>
         <label>Total miles<input id="miles" type="number" step="0.1" min="0" value="7.2"></label>
         <label>Items<input id="items" type="number" step="1" min="0" value="18"></label>
+        <label>Stores <span>(optional)</span><input id="stores" type="number" step="1" min="0"></label>
         <label>Estimated minutes <span>(optional)</span><input id="minutes" type="number" step="1" min="1"></label>
+      </section>
+      <section class="card">
+        <p class="section-label">YOUR CAR & COSTS</p>
+        <p class="hint">The values below are an editable starting point for your 2019 Hyundai Elantra Sport. Update them to match your own driving.</p>
+        <div class="grid settings">
+          <label>Vehicle<input id="vehicleName" type="text" value="2019 Hyundai Elantra Sport"></label>
+          <label>Gas price (CAD/L)<input id="gasPricePerLitre" type="number" step="0.001" min="0" value="1.55"></label>
+          <label>Fuel use (L/100 km)<input id="fuelLitresPer100Km" type="number" step="0.1" min="0" value="8.8"></label>
+          <label>Maintenance (CAD/km)<input id="maintenanceCostPerKm" type="number" step="0.01" min="0" value="0.12"></label>
+        </div>
       </section>
       <section class="card grid settings">
         <label>Minimum $/mile<input id="minimumPayPerMile" type="number" step="0.05" min="0" value="1.25"></label>
         <label>Minimum $/hour<input id="minimumHourlyRate" type="number" step="1" min="0" value="20"></label>
-        <label>Vehicle cost/mile<input id="costPerMile" type="number" step="0.01" min="0" value="0.25"></label>
       </section>
       <button id="analyzeButton" class="primary">Analyze batch</button>
       <section id="result" class="card result" aria-live="polite" hidden></section>
-      <p class="privacy">This POC runs locally on this PC. It does not sign in to Instacart, control it, or upload screen content.</p>
+      <p class="privacy">This POC does not sign in to Instacart, control it, or upload screen content. The photo scan reads only the image you choose; review its results before using them.</p>
     </main>
     <script src="/app.js"></script>
   </body>
