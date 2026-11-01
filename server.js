@@ -4,7 +4,7 @@ const path = require("node:path");
 const { analyzeOffer, parseOfferText } = require("./src/advisor");
 
 const publicDirectory = path.join(__dirname, "public");
-const mimeTypes = { ".css": "text/css", ".html": "text/html", ".js": "text/javascript" };
+const mimeTypes = { ".css": "text/css", ".html": "text/html", ".js": "text/javascript", ".webmanifest": "application/manifest+json" };
 
 function respondJson(response, status, payload) {
   response.writeHead(status, { "content-type": "application/json; charset=utf-8" });

@@ -1,19 +1,10 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const { analyzeOffer, parseOfferText } = require("../src/advisor");
-
-test("recommends take for an offer meeting both targets", () => {
-  const result = analyzeOffer({ pay: 30, miles: 10, items: 10 });
-  assert.equal(result.recommendation, "TAKE");
-  assert.equal(result.payPerMile, 3);
-  assert.ok(result.estimatedFuelCost > 0);
-});
-
-test("recommends skip for an offer missing both targets", () => {
-  const result = analyzeOffer({ pay: 8, miles: 12, items: 20 });
-  assert.equal(result.recommendation, "SKIP");
-});
-
-test("parses a pasted offer summary", () => {
-  assert.deepEqual(parseOfferText("$24.50 batch, 7.2 miles, 18 items, 2 stores"), { pay: 24.5, miles: 7.2, items: 18, stores: 2 });
-});
+const test=require("node:test");
+const assert=require("node:assert/strict");
+const {analyzeOffer,parseOfferText}=require("../src/advisor");
+test("strong offer meets both thresholds",()=>{const r=analyzeOffer({pay:30,miles:10,items:10,estimatedMinutes:45});assert.equal(r.recommendation,"TAKE");assert.equal(r.payPerMile,3);assert.ok(r.estimatedFuelCost>0);assert.ok(r.estimatedNet<r.pay);});
+test("weak offer is skipped",()=>assert.equal(analyzeOffer({pay:8,miles:12,items:20,estimatedMinutes:90}).recommendation,"SKIP"));
+test("blank time uses item and driving estimate",()=>{const r=analyzeOffer({pay:25,miles:8,items:20,estimatedMinutes:""});assert.ok(r.estimatedMinutes>12);assert.ok(r.driveMinutes>0);});
+test("multiple stores add time",()=>{const a=analyzeOffer({pay:30,miles:10,items:10,stores:1}),b=analyzeOffer({pay:30,miles:10,items:10,stores:2});assert.ok(b.estimatedMinutes>a.estimatedMinutes);});
+test("missing mileage never receives take recommendation",()=>{const r=analyzeOffer({pay:30,miles:0,items:10,estimatedMinutes:30});assert.notEqual(r.recommendation,"TAKE");assert.match(r.concerns.join(" "),/Mileage is missing/);});
+test("parses pay miles items stores",()=>assert.deepEqual(parseOfferText("$24.50 batch, 7.2 miles, 18 items, 2 stores"),{pay:24.5,miles:7.2,items:18,stores:2}));
+test("converts kilometres to miles",()=>{const r=parseOfferText("CA$18.00, 10 km, 12 items");assert.equal(r.pay,18);assert.ok(Math.abs(r.miles-6.2137)<.001);});

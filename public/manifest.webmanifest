@@ -1,0 +1,9 @@
+{
+  "name": "Batch Buddy",
+  "short_name": "Batch Buddy",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07131f",
+  "theme_color": "#07131f",
+  "description": "Canadian batch earnings and vehicle-cost advisor."
+}
