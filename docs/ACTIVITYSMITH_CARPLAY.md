@@ -13,6 +13,8 @@ Batch Buddy uses two delivery paths:
 4. On the desktop monitor, enter the token, Apple Team ID, Apple Key ID, and the path to the matching APNs `.p8` key.
 5. Keep the monitor computer awake and online.
 
+The desktop bridge defaults to Apple’s development APNs environment, which is normally the correct choice for a sideloaded development-signed IPA. Use the production endpoint only when the installed app and provisioning profile use the production push environment.
+
 The Apple key is never sent to ActivitySmith. It is used locally by `apns_live_activity.py` to sign the provider request to Apple.
 
 ## What appears where

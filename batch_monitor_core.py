@@ -34,7 +34,7 @@ class MonitorConfig:
     apple_key_id: str = ""
     apple_private_key_path: str = ""
     bundle_id: str = "com.batchbuddy.advisor"
-    apns_production: bool = True
+    apns_production: bool = False
 
 
 @dataclass(frozen=True)
