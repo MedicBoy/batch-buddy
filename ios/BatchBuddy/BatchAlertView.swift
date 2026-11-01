@@ -76,7 +76,7 @@ struct BatchAlertView: View {
                     .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                 Button("Accept") {
-                    if let url = URL(string: "instacartshopper://") {
+                    if let url = URL(string: "shortcuts://run-shortcut?name=OpenInstacart") {
                         UIApplication.shared.open(url)
                     }
                     showPopup = false

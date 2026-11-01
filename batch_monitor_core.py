@@ -281,7 +281,7 @@ class BatchMonitor:
             metadata=metadata,
             tags=tags,
             actions=[
-                action(title="Accept", type="open_url", url="instacartshopper://"),
+                action(title="Accept", type="open_url", url="shortcuts://run-shortcut?name=OpenInstacart"),
                 action(title="Reject", type="open_url", url="activitysmith://dismiss"),
             ],
         )
@@ -301,7 +301,7 @@ class BatchMonitor:
                     type="alert",
                     color="green" if recommendation == "✅ ACCEPT" else "orange",
                 ),
-                action=action(title="Open Shopper", type="open_url", url="instacartshopper://"),
+                action=action(title="Open Shopper", type="open_url", url="shortcuts://run-shortcut?name=OpenInstacart"),
                 secondary_action=action(title="Reject", type="open_url", url="activitysmith://dismiss"),
                 metadata=metadata,
                 tags=tags,
