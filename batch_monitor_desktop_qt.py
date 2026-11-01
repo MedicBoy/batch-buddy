@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from activitysmith import ActivitySmith
 from batch_history import BatchHistory
 from batch_monitor_core import BatchMonitor, BatchResult, MonitorConfig
 
@@ -306,7 +307,7 @@ class BatchBuddyWindow(QMainWindow):
         title = QLabel("SIGNAL INSPECTOR")
         title.setObjectName("panelTitle")
         inspector_layout.addWidget(title)
-        self.inspector = QLabel("Live Activity\nStand by for the next offer.\n\nActivitySmith\nNot connected")
+        self.inspector = QLabel("Live Activity\nStand by for the next offer.\n\nActivitySmith\nWaiting for monitor start")
         self.inspector.setWordWrap(True)
         self.inspector.setStyleSheet(f"font-size:10pt; color:{TEXT}; line-height:1.5;")
         inspector_layout.addWidget(self.inspector)
@@ -378,6 +379,16 @@ class BatchBuddyWindow(QMainWindow):
         smith_intro.setObjectName("muted")
         smith_intro.setWordWrap(True)
         smith_layout.addWidget(smith_intro)
+        smith_actions = QHBoxLayout()
+        self.test_smith_button = QPushButton("Send test notification")
+        self.test_smith_button.setObjectName("primary")
+        self.test_smith_button.clicked.connect(self._test_activitysmith)
+        smith_actions.addWidget(self.test_smith_button)
+        self.smith_test_status = QLabel("Not tested yet")
+        self.smith_test_status.setObjectName("muted")
+        smith_actions.addWidget(self.smith_test_status)
+        smith_actions.addStretch(1)
+        smith_layout.addLayout(smith_actions)
         smith_grid = QGridLayout()
         smith_grid.setSpacing(12)
         for index, (title, detail) in enumerate((("Push notifications", "Immediate offer alerts with Accept and Reject actions."), ("Live Activity", "Persistent current-batch state on your iPhone."), ("Metric widgets", "Latest pay, net estimate, and hourly estimate."), ("Tags + metadata", "Searchable batch context in ActivitySmith history."))):
@@ -454,6 +465,24 @@ class BatchBuddyWindow(QMainWindow):
         self._save_config()
         self.save_status.setText("Saved locally. These values will be restored next time Batch Buddy opens.")
 
+    def _test_activitysmith(self) -> None:
+        api_key = self.vars["activitysmith"].text().strip()
+        if not api_key:
+            self.smith_test_status.setText("Enter an ActivitySmith API key in Settings first.")
+            return
+        self.test_smith_button.setEnabled(False)
+        self.smith_test_status.setText("Sending test…")
+        try:
+            smith = ActivitySmith(api_key=api_key)
+            smith.notifications.send(title="Batch Buddy connected", message="ActivitySmith is connected and ready for live batch alerts.", tags=["batch-buddy", "connection-test"])
+            self.smith_test_status.setText("Test sent successfully. Check your iPhone.")
+            self.inspector.setText("Live Activity\nStand by for the next offer.\n\nActivitySmith\nConnected · test sent")
+        except Exception as error:
+            self.smith_test_status.setText(f"Test failed: {error}")
+            self.inspector.setText("Live Activity\nStand by for the next offer.\n\nActivitySmith\nConnection test failed")
+        finally:
+            self.test_smith_button.setEnabled(True)
+
     def _start(self) -> None:
         values = {name: field.text().strip() for name, field in self.vars.items()}
         if not all(values.values()):
@@ -469,6 +498,7 @@ class BatchBuddyWindow(QMainWindow):
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         self.radar_widget.set_signal(0.35, True)
+        self.inspector.setText("Live Activity\nWaiting for the next valid offer.\n\nActivitySmith\nConfigured · monitor running")
 
     def _stop(self) -> None:
         if self.stop_event:
@@ -483,6 +513,8 @@ class BatchBuddyWindow(QMainWindow):
                 kind, payload = self.events.get_nowait()
                 if kind == "status":
                     self.status_line.setText(str(payload))
+                    if "ActivitySmith" in str(payload) and ("sent" in str(payload) or "updated" in str(payload)):
+                        self.inspector.setText("Live Activity\nCurrent offer channel ready.\n\nActivitySmith\nConnected · live update sent")
                 elif isinstance(payload, BatchResult):
                     result = payload
                     self.history.record(result)
