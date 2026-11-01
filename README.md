@@ -1,40 +1,50 @@
-# Batch Buddy proof of concept
+# Batch Buddy
 
-This is a local batch-offer advisor. It calculates estimated pay per mile, hourly rate, driving cost, and a human-readable **TAKE**, **CONSIDER**, or **SKIP** recommendation. The user retains every account and acceptance decision.
+A native iPhone batch-offer advisor with a CarPlay Live Activity and an optional user-started live screen monitor. All offer decisions stay with the driver.
 
-## Run locally
+## iPhone features
 
-1. Install Node.js 20 or later.
-2. From this folder, run `npm start`.
-3. Open `http://127.0.0.1:4173` in a browser.
+- Enter an offer manually or scan a screenshot/photo locally with Vision OCR.
+- Estimate pay per kilometre, hourly rate, fuel, maintenance, and net earnings.
+- Configure Canadian fuel price, vehicle economy, and personal acceptance thresholds.
+- Publish TAKE, CONSIDER, SKIP, REVIEW, or SCANNING to a Live Activity.
+- Display the Live Activity in CarPlay Dashboard on supported iOS versions.
+- Optionally start Apple's system screen broadcast and let the ReplayKit extension inspect visible Instacart offer text locally while Shopper is open.
 
-Run the checks with `npm test`.
+## Live offer monitoring
 
-## What works today
+1. Open Batch Buddy and tap **Prepare live monitor**.
+2. Tap the iOS broadcast control, select Batch Buddy, and confirm **Start Broadcast**.
+3. Switch to Instacart Shopper and keep one offer visible.
+4. Batch Buddy samples frames about every 1.25 seconds and performs on-device OCR.
+5. When it can read one clear pay amount and one distance, it updates the existing Live Activity with the recommendation.
+6. If several offers are visible or the item count is unclear, it shows REVIEW or waits instead of guessing.
+7. Stop the broadcast using the iOS recording indicator or Control Center.
 
-- Pasting a visible offer summary or entering offer values manually.
-- Choosing a batch screenshot or photo, then scanning its visible text locally in the browser before reviewing the extracted values.
-- Custom earnings, mileage, and vehicle-cost thresholds.
-- Canadian fuel and maintenance-cost estimates, with editable vehicle and gas-price settings stored on the device.
-- A local calculation and optional spoken advice.
-- No Instacart login, API calls, account interaction, clicking, accepting, rejecting, or screen upload.
+The extension ignores audio. Captured frames are processed in memory, not stored or uploaded. Batch Buddy does not log in to Instacart, call private APIs, click, accept, reject, or otherwise interact with Shopper. The driver must verify the offer and make every decision.
 
-## iPhone feasibility and recommended path
+## CarPlay
 
-The practical target for the capture proof of concept is **iOS 18 or later**. Apple’s current ScreenCaptureKit guidance supports presenting the system’s content-sharing picker, where the user explicitly chooses either the full display or in-app content. A full-display selection can include the Shopper app while the share is active. Use it only after the user starts the share, process a low frame rate locally, discard frames after extracting offer fields, and keep all accept/reject actions manual. Apple’s older ReplayKit sample-buffer broadcast extension is now marked deprecated, so this project should use ScreenCaptureKit for the modern implementation.
+Batch Buddy uses ActivityKit and WidgetKit, not a custom CarPlay app category. On supported iOS versions, the system can display the Live Activity in CarPlay Dashboard. iOS and the vehicle control its placement. See [CarPlay setup and testing](docs/CARPLAY.md).
 
-This is feasible for a private experiment but not yet a completed iPhone app: the PC does not have Xcode or an iPhone connection. Apple’s Xcode support matrix lists macOS as its host platform, so a Mac (local, borrowed, or hosted build service that supports the required native capability) is needed to compile and package the Swift iOS app. A Windows PC can still use Sideloadly to install a finished IPA.
+## Build and install
 
-Free Apple signing is suitable for a prototype only: Apple says a Personal Team permits 3 apps per device and profiles expire after 7 days; Sideloadly documents the same 7-day lifetime and offers refresh support. Keep one stable bundle identifier so updates preserve local app data.
+GitHub Actions builds an unsigned iOS IPA on a macOS runner:
 
-## Next build milestone
+1. Open the repository's [Actions page](https://github.com/MedicBoy/batch-buddy/actions).
+2. Open the latest **Build unsigned iPhone IPA** run.
+3. Download the **BatchBuddy-unsigned-ipa** artifact.
+4. Sign the IPA with your own sideloading method (for example, Sideloadly) before installing it.
 
-On a Mac with Xcode and an iOS 18+ test iPhone, create the native SwiftUI host app and its ScreenCaptureKit stream. The stream should send only sampled, user-authorized frames to an offer parser. The parser should return structured fields to the already-built advisor endpoint, then show and speak a recommendation. Add an AI vision endpoint only after choosing an API provider and securely storing its key on a backend; never embed a secret in the iOS app.
+The project targets iOS 18 or later. CarPlay Live Activity display requires an iOS version and vehicle configuration that support Live Activities in CarPlay. The live screen monitor uses Apple's ReplayKit Broadcast Upload Extension for iOS 26 compatibility; test it on the actual iPhone before relying on it.
 
-## Sources
+## Important limitations
 
-- [Apple: Capturing screen content on iOS](https://developer.apple.com/documentation/screencapturekit/capturing-screen-content-on-ios)
-- [Apple: ScreenCaptureKit](https://developer.apple.com/documentation/screencapturekit)
-- [Apple: Personal Team limits](https://developer.apple.com/help/account/basics/about-your-developer-account)
-- [Apple: Xcode system requirements](https://developer.apple.com/xcode/system-requirements)
-- [Sideloadly FAQ](https://sideloadly.io/faq)
+- OCR depends on the exact Instacart screen layout, screen brightness, and readable text. It is intentionally conservative and will not guess when it sees multiple prices or distances.
+- No private Instacart API or account integration is used.
+- No batch is ever accepted or rejected automatically.
+- A successful CI build proves compilation and packaging only; real-device screen-capture and in-car CarPlay testing are still required.
+
+## Web proof of concept
+
+The original local browser proof of concept remains available through npm start and npm test. The native iPhone project is under ios/.
