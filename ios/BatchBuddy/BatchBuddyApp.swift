@@ -132,8 +132,10 @@ struct ContentView: View {
                     }
                     Spacer(minLength: 8)
                     BroadcastPickerButton()
-                        .frame(width: 58, height: 58)
-                        .background(.cyan.opacity(0.14), in: RoundedRectangle(cornerRadius: 14))
+                        .frame(width: 76, height: 58)
+                        .background(.cyan.opacity(0.20), in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(.cyan.opacity(0.55), lineWidth: 1))
+                        .accessibilityLabel("Start Batch Buddy screen broadcast")
                 }
                 .padding(.top, 4)
             }
@@ -242,6 +244,8 @@ private struct BroadcastPickerButton: UIViewRepresentable {
         let picker = RPSystemBroadcastPickerView(frame: .zero)
         picker.preferredExtension = "com.batchbuddy.advisor.broadcast"
         picker.showsMicrophoneButton = false
+        picker.tintColor = .white
+        picker.backgroundColor = .clear
         return picker
     }
 
