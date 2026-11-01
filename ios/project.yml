@@ -13,6 +13,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.batchbuddy.advisor
         PRODUCT_NAME: BatchBuddy
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         SWIFT_VERSION: 6.0
