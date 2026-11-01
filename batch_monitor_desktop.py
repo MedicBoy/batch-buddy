@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 import os
 import queue
+import sys
 import threading
 import tkinter as tk
+from datetime import datetime
 from pathlib import Path
 from tkinter import messagebox, ttk
 
@@ -16,16 +18,28 @@ CONFIG_PATH = Path(os.environ.get("APPDATA", Path.home())) / "BatchBuddy" / "mon
 HISTORY_PATH = Path(os.environ.get("APPDATA", Path.home())) / "BatchBuddy" / "history.sqlite3"
 
 
+def _icon_path() -> Path:
+    bundle_root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    bundled = bundle_root / "assets" / "batchbuddy.ico"
+    if bundled.exists():
+        return bundled
+    return Path(__file__).resolve().parent / "assets" / "batchbuddy.ico"
+
+
 class BatchBuddyMonitorApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("Batch Buddy Monitor")
-        self.geometry("700x850")
-        self.minsize(600, 720)
+        self.geometry("860x1040")
+        self.minsize(700, 820)
         self.configure(bg="#07131d")
+        icon = _icon_path()
+        if icon.exists():
+            self.iconbitmap(default=str(icon))
         self._events: queue.Queue[tuple[str, object]] = queue.Queue()
         self._stop_event: threading.Event | None = None
         self._thread: threading.Thread | None = None
+        self._selected_signature: str | None = None
         self._history = BatchHistory(HISTORY_PATH)
         self._vars = {name: tk.StringVar() for name in ("activitysmith", "auth", "cookies", "shopper")}
         self._apns_vars = {name: tk.StringVar() for name in ("push_token", "team_id", "key_id", "private_key_path")}
@@ -97,6 +111,27 @@ class BatchBuddyMonitorApp(tk.Tk):
         ttk.Label(stats, textvariable=self.stats, style="Card.TLabel", font=("Segoe UI", 11), justify="left").pack(anchor="w")
         self._refresh_stats()
 
+        history = ttk.LabelFrame(root, text="Batch history", padding=14, style="Card.TLabelframe")
+        history.pack(fill="both", expand=True, pady=(14, 0))
+        columns = ("status", "time", "recommendation", "pay", "net", "rate", "distance")
+        self.history_table = ttk.Treeview(history, columns=columns, show="headings", height=9)
+        headings = {
+            "status": "Status", "time": "Observed", "recommendation": "Decision",
+            "pay": "Pay", "net": "Net", "rate": "$/hr", "distance": "Distance",
+        }
+        widths = {"status": 100, "time": 145, "recommendation": 120, "pay": 75, "net": 75, "rate": 75, "distance": 90}
+        for column in columns:
+            self.history_table.heading(column, text=headings[column])
+            self.history_table.column(column, width=widths[column], anchor="w")
+        self.history_table.pack(fill="both", expand=True, side="left")
+        scrollbar = ttk.Scrollbar(history, orient="vertical", command=self.history_table.yview)
+        scrollbar.pack(fill="y", side="right")
+        self.history_table.configure(yscrollcommand=scrollbar.set)
+        self.history_table.bind("<<TreeviewSelect>>", self._select_history_row)
+        self.details = tk.StringVar(value="Select a batch to see its full recorded details.")
+        ttk.Label(root, textvariable=self.details, style="Muted.TLabel", justify="left", wraplength=760).pack(anchor="w", pady=(10, 0))
+        self._refresh_history()
+
         ttk.Label(root, text="Accept only opens Shopper. Reject performs no Shopper action. The monitor must stay running and online to discover new batches.", style="Muted.TLabel", wraplength=500).pack(anchor="w", pady=(18, 0))
 
     def _field(self, parent: ttk.LabelFrame, row: int, label: str, name: str, secret: bool, variables: dict[str, tk.StringVar] | None = None) -> None:
@@ -166,14 +201,50 @@ class BatchBuddyMonitorApp(tk.Tk):
                         self.latest.set(f"{result.recommendation}\nPay ${result.pay:.2f}  •  {result.distance:.1f} km  •  {result.items} items\nNet ${result.net_estimate:.2f}  •  ${result.hourly_estimate:.2f}/hr")
                         self.latest_label.configure(foreground="#5de3ff" if result.recommendation == "✅ ACCEPT" else "#ffb454")
                         self._refresh_stats()
+                        self._refresh_history()
         except queue.Empty:
             pass
         self.after(250, self._drain_events)
 
     def _mark_latest(self, status: str) -> None:
-        self._history.mark_latest(status)
+        if self._selected_signature:
+            self._history.mark(self._selected_signature, status)
+        else:
+            self._history.mark_latest(status)
         self._refresh_stats()
+        self._refresh_history()
         self.status.set(f"Latest batch marked {status}.")
+
+    def _refresh_history(self) -> None:
+        if not hasattr(self, "history_table"):
+            return
+        for item in self.history_table.get_children():
+            self.history_table.delete(item)
+        for batch in self._history.recent():
+            status_icon = {"completed": "✅ Completed", "skipped": "⏭ Skipped"}.get(str(batch["status"]), "• Offered")
+            observed = datetime.fromtimestamp(float(batch["observed_at"])).strftime("%b %d %H:%M:%S")
+            self.history_table.insert(
+                "", "end", iid=str(batch["signature"]),
+                values=(status_icon, observed, batch["recommendation"], f"${float(batch['pay']):.2f}",
+                        f"${float(batch['net_estimate']):.2f}", f"${float(batch['hourly_estimate']):.2f}",
+                        f"{float(batch['distance']):.1f} km"),
+            )
+
+    def _select_history_row(self, _event: object) -> None:
+        selection = self.history_table.selection()
+        if not selection:
+            return
+        signature = selection[0]
+        self._selected_signature = signature
+        batch = next((row for row in self._history.recent() if row["signature"] == signature), None)
+        if batch:
+            observed = datetime.fromtimestamp(float(batch["observed_at"])).strftime("%Y-%m-%d %H:%M:%S")
+            self.details.set(
+                f"{batch['status'].upper()}  •  {observed}\n"
+                f"Pay ${float(batch['pay']):.2f}  •  {float(batch['distance']):.1f} km  •  {int(batch['items'])} items\n"
+                f"Net ${float(batch['net_estimate']):.2f}  •  ${float(batch['hourly_estimate']):.2f}/hr\n"
+                f"Signature: {signature}"
+            )
 
     def _refresh_stats(self) -> None:
         summary = self._history.summary()

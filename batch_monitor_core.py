@@ -46,6 +46,9 @@ class BatchResult:
     hourly_estimate: float
     recommendation: str
     body: str
+    fuel_cost: float = 0.0
+    maintenance_cost: float = 0.0
+    pay_per_km: float = 0.0
     signature: str = ""
     observed_at: float = 0.0
 
@@ -125,7 +128,8 @@ class BatchMonitor:
         maintenance_cost = distance * self.config.maintenance_per_km
         net_estimate = pay - fuel_cost - maintenance_cost
         hourly_estimate = net_estimate / 0.75
-        recommendation = "✅ ACCEPT" if pay / distance >= 1.00 and hourly_estimate >= 25.00 else "⚠️ CONSIDER"
+        pay_per_km = pay / distance
+        recommendation = "✅ ACCEPT" if pay_per_km >= 1.00 and hourly_estimate >= 25.00 else "⚠️ CONSIDER"
         body = f"Pay: ${pay} | Dist: {distance}km\nNet: ${net_estimate:.2f} | $/hr: ${hourly_estimate:.2f}"
         item_value = _first_number(
             (r"(?:items?|units?)[^\d]{0,20}([0-9]+)",),
@@ -133,22 +137,50 @@ class BatchMonitor:
         )
         items = int(item_value or 0)
         body = f"Pay: ${pay} | Dist: {distance}km | Items: {items}\nNet: ${net_estimate:.2f} | $/hr: ${hourly_estimate:.2f}"
-        result = BatchResult(pay, distance, items, net_estimate, hourly_estimate, recommendation, body, current_signature, time.time())
+        observed_at = time.time()
+        result = BatchResult(
+            pay=pay,
+            distance=distance,
+            items=items,
+            net_estimate=net_estimate,
+            hourly_estimate=hourly_estimate,
+            recommendation=recommendation,
+            body=body,
+            fuel_cost=fuel_cost,
+            maintenance_cost=maintenance_cost,
+            pay_per_km=pay_per_km,
+            signature=current_signature,
+            observed_at=observed_at,
+        )
 
         winsound.Beep(1000, 500)
+        day_tag = time.strftime("%Y-%m-%d", time.localtime(observed_at))
+        recommendation_tag = "accept" if recommendation == "✅ ACCEPT" else "consider"
+        tags = [
+            "batch-buddy",
+            f"shopper:{self.config.shopper_id}",
+            f"date:{day_tag}",
+            f"recommendation:{recommendation_tag}",
+        ]
+        metadata = {
+            "batch_signature": current_signature[:4000],
+            "pay": pay,
+            "distance_km": distance,
+            "items": items,
+            "pay_per_km": pay_per_km,
+            "fuel_cost": fuel_cost,
+            "maintenance_cost": maintenance_cost,
+            "net_estimate": net_estimate,
+            "hourly_estimate": hourly_estimate,
+            "recommendation": recommendation,
+            "shopper_id": self.config.shopper_id,
+            "observed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(observed_at)),
+        }
         self._smith.notifications.send(
             title=f"Batch Buddy: {recommendation}",
             message=body,
-            metadata={
-                "pay": pay,
-                "distance_km": distance,
-                "items": items,
-                "net_estimate": net_estimate,
-                "hourly_estimate": hourly_estimate,
-                "recommendation": recommendation,
-                "shopper_id": self.config.shopper_id,
-            },
-            tags=["batch-buddy", f"shopper:{self.config.shopper_id}"],
+            metadata=metadata,
+            tags=tags,
             actions=[
                 action(title="Accept", type="open_url", url="instacartshopper://"),
                 action(title="Reject", type="open_url", url="activitysmith://dismiss"),
@@ -165,13 +197,8 @@ class BatchMonitor:
                 ),
                 action=action(title="Open Shopper", type="open_url", url="instacartshopper://"),
                 secondary_action=action(title="Reject", type="open_url", url="activitysmith://dismiss"),
-                metadata={
-                    "pay": pay,
-                    "distance_km": distance,
-                    "net_estimate": net_estimate,
-                    "hourly_estimate": hourly_estimate,
-                },
-                tags=["batch-buddy", f"shopper:{self.config.shopper_id}"],
+                metadata=metadata,
+                tags=tags,
             )
         except Exception as error:
             self._status(f"ActivitySmith alert sent; Live Activity update skipped: {error}")

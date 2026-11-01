@@ -7,6 +7,7 @@ on:
       - 'batch_monitor*.py'
       - 'batch_history.py'
       - 'apns_live_activity.py'
+      - 'assets/batchbuddy.ico'
       - 'requirements.txt'
       - '.github/workflows/windows-monitor.yml'
 
@@ -24,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
       - name: Build desktop executable
-        run: pyinstaller --noconfirm --clean --onefile --windowed --name BatchBuddyMonitor batch_monitor_desktop.py
+        run: pyinstaller --noconfirm --clean --onefile --windowed --icon assets/batchbuddy.ico --add-data "assets/batchbuddy.ico;assets" --name BatchBuddyMonitor batch_monitor_desktop.py
       - uses: actions/upload-artifact@v4
         with:
           name: BatchBuddyMonitor-windows

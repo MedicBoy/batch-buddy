@@ -56,3 +56,7 @@ The original local browser proof of concept remains available through npm start 
 The notification's Accept action only opens `instacartshopper://`; it does not accept a batch. Reject/Ignore performs no Shopper action.
 
 For native Batch Buddy Live Activity updates, prepare the Live Activity in the iPhone app and tap **Copy token**. Enter that token, your Apple Team ID, Key ID, and APNs `.p8` private-key path in the desktop monitor. The Apple key is only used locally to update the Batch Buddy activity; ActivitySmith notifications continue to work without APNs configuration.
+
+Each ActivitySmith alert now includes structured batch metadata (pay, distance, items, fuel, maintenance, net estimate, hourly estimate, recommendation, and timestamp) and searchable tags for the shopper, date, and recommendation. The desktop monitor also keeps a clickable batch history with completed/skipped status, recorded details, and session totals. Completion is a local user decision; the current offer feed does not verify completion inside Shopper.
+
+The Windows executable uses the same Batch Buddy app icon as the iOS app for its file, taskbar, and application-window branding.

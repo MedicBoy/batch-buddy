@@ -46,13 +46,35 @@ class BatchHistory:
             )
 
     def mark_latest(self, status: str) -> None:
+        with self._connect() as connection:
+            latest = connection.execute("SELECT signature FROM batches ORDER BY observed_at DESC LIMIT 1").fetchone()
+        if latest:
+            self.mark(latest[0], status)
+
+    def mark(self, signature: str, status: str) -> None:
         if status not in {"completed", "skipped"}:
             raise ValueError("Unsupported batch status")
         with self._connect() as connection:
-            connection.execute(
-                "UPDATE batches SET status = ? WHERE observed_at = (SELECT MAX(observed_at) FROM batches)",
-                (status,),
-            )
+            connection.execute("UPDATE batches SET status = ? WHERE signature = ?", (status, signature))
+
+    def recent(self, limit: int = 50) -> list[dict[str, object]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT signature, observed_at, pay, distance, items, net_estimate,
+                       hourly_estimate, recommendation, status
+                FROM batches ORDER BY observed_at DESC LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [
+            {
+                "signature": row[0], "observed_at": row[1], "pay": row[2],
+                "distance": row[3], "items": row[4], "net_estimate": row[5],
+                "hourly_estimate": row[6], "recommendation": row[7], "status": row[8],
+            }
+            for row in rows
+        ]
 
     def summary(self) -> dict[str, float]:
         with self._connect() as connection:
