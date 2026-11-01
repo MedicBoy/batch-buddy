@@ -15,6 +15,7 @@ struct ContentView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var scanStatus = "Choose an offer screenshot or photo. Scanning stays on this phone."
     @State private var extractedText = ""
+    @State private var showPopup = false
     @FocusState private var focusedField: EntryField?
     @AppStorage("vehicleName") private var vehicleName = "2019 Hyundai Elantra Sport • 6-speed manual"
     @AppStorage("gasPricePerLitre") private var gasPricePerLitre = 1.55
@@ -42,6 +43,10 @@ struct ContentView: View {
                             .font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 4).padding(.bottom, 10)
                     }.padding(.horizontal, 16).padding(.vertical, 12)
                 }.scrollDismissesKeyboard(.interactively)
+                if showPopup {
+                    Color.black.opacity(0.62).ignoresSafeArea().transition(.opacity)
+                    BatchAlertView(showPopup: $showPopup).transition(.scale(scale: 0.94).combined(with: .opacity))
+                }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .principal) { Text("Batch Buddy").font(.headline.weight(.bold)) }; ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Done") { focusedField = nil } } }
@@ -111,7 +116,7 @@ struct ContentView: View {
 
     private var targetMenu: some View { Menu { Button("Quick fill — $0.60/km • $17/hr") { setTargets(0.60, 17) }; Button("Balanced — $0.80/km • $20/hr") { setTargets(0.80, 20) }; Button("Strong — $1.00/km • $25/hr") { setTargets(1.00, 25) }; Button("Premium — $1.20/km • $30/hr") { setTargets(1.20, 30) } } label: { Image(systemName: "target").font(.title3.weight(.bold)).foregroundStyle(.orange).padding(9).background(.orange.opacity(0.16), in: Circle()) }.accessibilityLabel("Choose target preset") }
     private func setTargets(_ perKilometre: Double, _ hourly: Double) { minimumPayPerKilometre = perKilometre; minimumHourlyRate = hourly }
-    private func analyze() { focusedField = nil; advice = OfferAdvisor.analyze(pay: Double(pay) ?? 0, kilometres: Double(kilometres) ?? 0, items: Int(items) ?? 0, gasPricePerLitre: gasPricePerLitre, fuelLitresPer100Km: fuelLitresPer100Km, maintenanceCostPerKm: maintenanceCostPerKm, minimumPayPerKilometre: minimumPayPerKilometre, minimumHourlyRate: minimumHourlyRate) }
+    private func analyze() { focusedField = nil; advice = OfferAdvisor.analyze(pay: Double(pay) ?? 0, kilometres: Double(kilometres) ?? 0, items: Int(items) ?? 0, gasPricePerLitre: gasPricePerLitre, fuelLitresPer100Km: fuelLitresPer100Km, maintenanceCostPerKm: maintenanceCostPerKm, minimumPayPerKilometre: minimumPayPerKilometre, minimumHourlyRate: minimumHourlyRate); showPopup = advice?.recommendation == "TAKE" }
     private func currency(_ value: Double) -> String { value.formatted(.currency(code: "CAD")) }
     private func scan(_ item: PhotosPickerItem) async {
         scanStatus = "Scanning on this phone…"
