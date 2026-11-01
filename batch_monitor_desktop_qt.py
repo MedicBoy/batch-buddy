@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QSpacerItem,
     QTableWidget,
     QTableWidgetItem,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -158,6 +159,10 @@ class BatchBuddyWindow(QMainWindow):
         self.setStyleSheet(f"""
             QMainWindow, QWidget {{ background:{BG}; color:{TEXT}; font-family:'Segoe UI'; font-size:10pt; }}
             QScrollArea {{ border:0; background:{BG}; }}
+            QTabWidget::pane {{ border:1px solid {BORDER}; border-radius:10px; background:{BG}; top:-1px; }}
+            QTabBar::tab {{ background:{SURFACE}; color:{MUTED}; border:1px solid {BORDER}; padding:10px 20px; margin-right:4px; border-top-left-radius:8px; border-top-right-radius:8px; }}
+            QTabBar::tab:selected {{ background:{SURFACE_2}; color:{CYAN}; border-bottom-color:{SURFACE_2}; }}
+            QTabBar::tab:hover {{ color:{TEXT}; }}
             QFrame#surface, QFrame#metricCard {{ background:{SURFACE}; border:1px solid {BORDER}; border-radius:12px; }}
             QFrame#signalCard {{ background:qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #0f2936, stop:1 {SURFACE}); border:1px solid #2c7386; border-radius:14px; }}
             QLabel#brand {{ color:{TEXT}; font-size:21pt; font-weight:700; letter-spacing:1px; }}
@@ -186,10 +191,21 @@ class BatchBuddyWindow(QMainWindow):
         scroll.setWidgetResizable(True)
         content = QWidget()
         root = QVBoxLayout(content)
-        root.setContentsMargins(28, 23, 28, 30)
-        root.setSpacing(16)
+        root.setContentsMargins(18, 16, 18, 18)
         scroll.setWidget(content)
         self.setCentralWidget(scroll)
+        tabs = QTabWidget()
+        tabs.setDocumentMode(True)
+        root.addWidget(tabs)
+        radar_page = QWidget()
+        page = QVBoxLayout(radar_page)
+        page.setContentsMargins(10, 12, 10, 18)
+        page.setSpacing(16)
+        settings_page = QWidget()
+        settings_layout = QVBoxLayout(settings_page)
+        settings_layout.setContentsMargins(22, 22, 22, 22)
+        settings_layout.setSpacing(14)
+        tabs.addTab(radar_page, "Radar")
 
         top = QHBoxLayout()
         logo = QLabel("⚡")
@@ -215,20 +231,20 @@ class BatchBuddyWindow(QMainWindow):
         self.stop_button.setEnabled(False)
         self.stop_button.clicked.connect(self._stop)
         top.addWidget(self.stop_button)
-        root.addLayout(top)
+        page.addLayout(top)
         self.status_line = QLabel("Ready. Enter credentials, then start the monitor.")
         self.status_line.setObjectName("muted")
-        root.addWidget(self.status_line)
+        page.addWidget(self.status_line)
 
         eyebrow = QLabel("LIVE OVERVIEW")
         eyebrow.setObjectName("eyebrow")
-        root.addWidget(eyebrow)
+        page.addWidget(eyebrow)
         metrics = QHBoxLayout()
         metrics.setSpacing(10)
         self.metric_cards = [MetricCard("Offers today"), MetricCard("Completed", GREEN), MetricCard("Net estimate", CYAN), MetricCard("Average rate", AMBER)]
         for card in self.metric_cards:
             metrics.addWidget(card)
-        root.addLayout(metrics)
+        page.addLayout(metrics)
 
         main_row = QHBoxLayout()
         main_row.setSpacing(14)
@@ -300,7 +316,7 @@ class BatchBuddyWindow(QMainWindow):
         note.setWordWrap(True)
         inspector_layout.addWidget(note)
         main_row.addWidget(inspector, 3)
-        root.addLayout(main_row)
+        page.addLayout(main_row)
 
         history_panel = QFrame()
         history_panel.setObjectName("surface")
@@ -330,14 +346,56 @@ class BatchBuddyWindow(QMainWindow):
         self.details.setObjectName("muted")
         self.details.setWordWrap(True)
         history_layout.addWidget(self.details)
-        root.addWidget(history_panel)
+        page.addWidget(history_panel)
 
-        root.addWidget(self._settings_card("CONNECTION SETTINGS", [("ActivitySmith API key", "activitysmith", True), ("Instacart auth token", "auth", True), ("Instacart cookies", "cookies", True), ("Shopper ID", "shopper", False)]))
+        settings_layout.addWidget(self._settings_card("CONNECTION SETTINGS", [("ActivitySmith API key", "activitysmith", True), ("Instacart auth token", "auth", True), ("Instacart cookies", "cookies", True), ("Shopper ID", "shopper", False)]))
         native = self._settings_card("NATIVE LIVE ACTIVITY / CARPLAY (OPTIONAL)", [("ActivityKit push token", "push_token", True), ("Apple Team ID", "team_id", False), ("Apple Key ID", "key_id", False), ("Private .p8 key path", "private_key_path", False)], apns=True)
-        root.addWidget(native)
+        settings_layout.addWidget(native)
+        settings_actions = QHBoxLayout()
+        self.save_button = QPushButton("Save settings")
+        self.save_button.setObjectName("primary")
+        self.save_button.clicked.connect(self._save_config_ui)
+        settings_actions.addWidget(self.save_button)
+        self.save_status = QLabel("Credentials are stored locally on this computer.")
+        self.save_status.setObjectName("muted")
+        settings_actions.addWidget(self.save_status)
+        settings_actions.addStretch(1)
+        settings_layout.addLayout(settings_actions)
         footer = QLabel("Batch Buddy keeps monitoring while minimized. Leave the computer online for live offer detection.")
         footer.setObjectName("muted")
-        root.addWidget(footer)
+        settings_layout.addWidget(footer)
+        settings_layout.addStretch(1)
+        tabs.addTab(settings_page, "Settings")
+
+        smith_page = QWidget()
+        smith_layout = QVBoxLayout(smith_page)
+        smith_layout.setContentsMargins(22, 22, 22, 22)
+        smith_layout.setSpacing(14)
+        smith_title = QLabel("ACTIVITYSMITH CONTROL ROOM")
+        smith_title.setObjectName("eyebrow")
+        smith_layout.addWidget(smith_title)
+        smith_intro = QLabel("ActivitySmith is the live delivery layer for Batch Buddy notifications, Live Activities, and metric widgets.")
+        smith_intro.setObjectName("muted")
+        smith_intro.setWordWrap(True)
+        smith_layout.addWidget(smith_intro)
+        smith_grid = QGridLayout()
+        smith_grid.setSpacing(12)
+        for index, (title, detail) in enumerate((("Push notifications", "Immediate offer alerts with Accept and Reject actions."), ("Live Activity", "Persistent current-batch state on your iPhone."), ("Metric widgets", "Latest pay, net estimate, and hourly estimate."), ("Tags + metadata", "Searchable batch context in ActivitySmith history."))):
+            panel = QFrame()
+            panel.setObjectName("surface")
+            panel_layout = QVBoxLayout(panel)
+            panel_layout.setContentsMargins(16, 16, 16, 16)
+            panel_title = QLabel(title)
+            panel_title.setStyleSheet(f"color:{CYAN}; font-size:11pt; font-weight:700;")
+            panel_layout.addWidget(panel_title)
+            panel_detail = QLabel(detail)
+            panel_detail.setObjectName("muted")
+            panel_detail.setWordWrap(True)
+            panel_layout.addWidget(panel_detail)
+            smith_grid.addWidget(panel, index // 2, index % 2)
+        smith_layout.addLayout(smith_grid)
+        smith_layout.addStretch(1)
+        tabs.insertTab(1, smith_page, "ActivitySmith")
 
     def _settings_card(self, title: str, fields: list[tuple[str, str, bool]], apns: bool = False) -> QFrame:
         card = QFrame()
@@ -391,6 +449,10 @@ class BatchBuddyWindow(QMainWindow):
         values = {name: field.text() for name, field in self.vars.items()}
         values.update({name: field.text() for name, field in self.apns_vars.items()})
         CONFIG_PATH.write_text(json.dumps(values), encoding="utf-8")
+
+    def _save_config_ui(self) -> None:
+        self._save_config()
+        self.save_status.setText("Saved locally. These values will be restored next time Batch Buddy opens.")
 
     def _start(self) -> None:
         values = {name: field.text().strip() for name, field in self.vars.items()}
