@@ -8,37 +8,60 @@ struct BatchAlertView: View {
     let items: Int
     let advice: OfferAdvice
 
+    private var recommendationColor: Color {
+        advice.recommendation == "TAKE" ? .green : (advice.recommendation == "SKIP" ? .red : .orange)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("Instacart batch").font(.title3.weight(.bold))
-                    Text("\(kilometres, specifier: "%.1f") km • \(items) items").font(.subheadline).foregroundStyle(.white.opacity(0.60))
+                    Text("\(kilometres, specifier: "%.1f") km • \(items) items")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.60))
                 }
                 Spacer()
                 Button { showPopup = false } label: {
-                    Image(systemName: "xmark").font(.subheadline.weight(.bold)).foregroundStyle(.white.opacity(0.65)).padding(9).background(.white.opacity(0.10), in: Circle())
-                }.accessibilityLabel("Close batch alert")
+                    Image(systemName: "xmark")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.white.opacity(0.65))
+                        .padding(9)
+                        .background(.white.opacity(0.10), in: Circle())
+                }
+                .accessibilityLabel("Close batch alert")
             }
 
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(pay, format: .currency(code: "CAD")).font(.system(size: 42, weight: .bold, design: .rounded))
-                    Text("Estimated batch pay").font(.caption).foregroundStyle(.white.opacity(0.55))
+                    Text(pay, format: .currency(code: "CAD"))
+                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                    Text("Estimated batch pay")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.55))
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 5) {
-                    Text("NET").font(.caption2.weight(.bold)).foregroundStyle(.white.opacity(0.55))
-                    Text(advice.estimatedNet, format: .currency(code: "CAD")).font(.headline.weight(.bold)).foregroundStyle(.green)
-                    Text(advice.hourlyRate, format: .currency(code: "CAD")).font(.subheadline.weight(.semibold)).foregroundStyle(.cyan)
+                    Text("NET")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white.opacity(0.55))
+                    Text(advice.estimatedNet, format: .currency(code: "CAD"))
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(.green)
+                    Text("\(advice.hourlyRate, format: .currency(code: "CAD"))/hr")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.cyan)
                 }
             }
-            .padding(16).background(.black.opacity(0.20), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .padding(16)
+            .background(.black.opacity(0.20), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
 
             Label("BatchBuddy recommends: \(advice.recommendation)", systemImage: advice.recommendation == "TAKE" ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .font(.subheadline.weight(.semibold)).foregroundStyle(advice.recommendation == "TAKE" ? .green : .orange)
-                .padding(.horizontal, 12).padding(.vertical, 10)
-                .background(.green.opacity(0.14), in: Capsule())
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(recommendationColor)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(recommendationColor.opacity(0.14), in: Capsule())
 
             Text(advice.message)
                 .font(.caption)
@@ -46,15 +69,22 @@ struct BatchAlertView: View {
 
             HStack(spacing: 12) {
                 Button("Ignore") { showPopup = false }
-                    .font(.headline.weight(.semibold)).foregroundStyle(.white)
-                    .frame(maxWidth: .infinity).padding(.vertical, 15)
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 15)
                     .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
                 Button("Accept") {
-                    UIApplication.shared.open(URL(string: "instacartshopper://")!)
+                    if let url = URL(string: "instacartshopper://") {
+                        UIApplication.shared.open(url)
+                    }
                     showPopup = false
                 }
-                .font(.headline.weight(.bold)).foregroundStyle(.black)
-                .frame(maxWidth: .infinity).padding(.vertical, 15)
+                .font(.headline.weight(.bold))
+                .foregroundStyle(.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 15)
                 .background(Color.green, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
         }

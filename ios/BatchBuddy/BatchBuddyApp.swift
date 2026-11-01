@@ -4,12 +4,63 @@ import Vision
 import ImageIO
 import ReplayKit
 import ActivityKit
+import PusherSwift
+import AVFoundation
 
 @main
 struct BatchBuddyApp: App { var body: some Scene { WindowGroup { ContentView() } } }
 
+// MARK: - PUSHER MANAGER
+@MainActor // 👈 This fixes the Swift 6 error!
+class PusherManager: ObservableObject {
+    // ⚠️ PASTE YOUR PUSHER KEYS HERE!
+    private let pusherKey = "157cde463247a243cbbf" 
+    private let pusherCluster = "us2" 
+    
+    var pusher: Pusher!
+    
+    @Published var showPopup = false
+    @Published var pay = "$0.00"
+    @Published var distance = "0.0 km"
+    @Published var net = "$0.00"
+    @Published var hourly = "$0.00/hr"
+    @Published var recommendation = "CONSIDER"
+    
+    init() {
+        let options = PusherClientOptions(host: .cluster(pusherCluster))
+        pusher = Pusher(key: pusherKey, options: options)
+        
+        let channel = pusher.subscribe("batch-channel")
+        
+        _ = channel.bind(eventName: "new-batch", eventCallback: { [weak self] (event: PusherEvent) in
+            guard let self = self else { return }
+            if let data = event.data?.data(using: .utf8) {
+                do {
+                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        Task { @MainActor in
+                            self.pay = json["pay"] as? String ?? "$0.00"
+                            self.distance = json["distance"] as? String ?? "0.0 km"
+                            self.net = json["net"] as? String ?? "$0.00"
+                            self.hourly = json["hourly"] as? String ?? "$0.00/hr"
+                            self.recommendation = json["recommendation"] as? String ?? "CONSIDER"
+                            
+                            AudioServicesPlaySystemSound(1005) 
+                            withAnimation { self.showPopup = true }
+                        }
+                    }
+                } catch { print("Error parsing JSON") }
+            }
+        })
+        pusher.connect()
+    }
+}
+
+// MARK: - MAIN VIEW
 struct ContentView: View {
     enum EntryField: Hashable { case pay, kilometres, items }
+    
+    @StateObject var pusherManager = PusherManager()
+    
     @State private var pay = ""
     @State private var kilometres = ""
     @State private var items = ""
@@ -34,6 +85,7 @@ struct ContentView: View {
         NavigationStack {
             ZStack {
                 LinearGradient(colors: [Color(red: 0.02, green: 0.05, blue: 0.10), Color(red: 0.03, green: 0.13, blue: 0.16), Color(red: 0.02, green: 0.02, blue: 0.06)], startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea()
+                
                 ScrollView {
                     VStack(spacing: 16) {
                         header
