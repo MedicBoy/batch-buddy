@@ -62,3 +62,5 @@ Each ActivitySmith alert now includes structured batch metadata (pay, distance, 
 New batches also update three ActivitySmith metric widgets: `batch-buddy-latest-pay`, `batch-buddy-latest-net`, and `batch-buddy-latest-hourly`. Add those metric names as widgets in ActivitySmith to keep the latest offer numbers visible at a glance.
 
 The Windows executable uses the same Batch Buddy app icon as the iOS app for its file, taskbar, and application-window branding.
+
+The desktop monitor uses a custom PySide6/Qt Radar interface with a scrollable dashboard, animated offer radar, compact metrics, signal inspector, and batch history table.

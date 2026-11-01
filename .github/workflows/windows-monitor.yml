@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
       - name: Build desktop executable
-        run: pyinstaller --noconfirm --clean --onefile --windowed --icon assets/batchbuddy.ico --add-data "assets/batchbuddy.ico;assets" --name BatchBuddyMonitor batch_monitor_desktop.py
+        run: pyinstaller --noconfirm --clean --onefile --windowed --icon assets/batchbuddy.ico --add-data "assets/batchbuddy.ico;assets" --name BatchBuddyMonitor batch_monitor_desktop_qt.py
       - uses: actions/upload-artifact@v4
         with:
           name: BatchBuddyMonitor-windows
