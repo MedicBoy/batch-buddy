@@ -51,6 +51,7 @@ targets:
     info:
       path: BatchBuddyWidget/Info.plist
       properties:
+        CFBundleDisplayName: BatchBuddy Widget
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
 
@@ -74,6 +75,7 @@ targets:
     info:
       path: BatchBuddyBroadcast/Info.plist
       properties:
+        CFBundleDisplayName: BatchBuddy Broadcast
         NSExtension:
           NSExtensionAttributes:
             RPBroadcastProcessMode: RPBroadcastProcessModeSampleBuffer
