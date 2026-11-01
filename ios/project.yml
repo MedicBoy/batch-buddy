@@ -12,6 +12,8 @@ targets:
     dependencies:
       - target: BatchBuddyWidget
         embed: true
+      - target: BatchBuddyBroadcast
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.batchbuddy.advisor
@@ -21,8 +23,8 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_NSSupportsLiveActivities: YES
         SWIFT_VERSION: 6.0
-        MARKETING_VERSION: 1.1.0
-        CURRENT_PROJECT_VERSION: 10
+        MARKETING_VERSION: 1.2.0
+        CURRENT_PROJECT_VERSION: 11
 
   BatchBuddyWidget:
     type: app-extension
@@ -37,14 +39,40 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         SKIP_INSTALL: YES
         SWIFT_VERSION: 6.0
-        MARKETING_VERSION: 1.1.0
-        CURRENT_PROJECT_VERSION: 10
+        MARKETING_VERSION: 1.2.0
+        CURRENT_PROJECT_VERSION: 11
     info:
       path: BatchBuddyWidget/Info.plist
       properties:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).BatchBuddyWidgetBundle
+
+  BatchBuddyBroadcast:
+    type: app-extension
+    platform: iOS
+    sources:
+      - BatchBuddyBroadcast
+      - BatchBuddy/BatchBuddyAttributes.swift
+      - BatchBuddy/OfferAdvisor.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.batchbuddy.advisor.broadcast
+        PRODUCT_NAME: BatchBuddyBroadcast
+        GENERATE_INFOPLIST_FILE: YES
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SWIFT_VERSION: 6.0
+        MARKETING_VERSION: 1.2.0
+        CURRENT_PROJECT_VERSION: 11
+    info:
+      path: BatchBuddyBroadcast/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionAttributes:
+            RPBroadcastProcessMode: RPBroadcastProcessModeSampleBuffer
+          NSExtensionPointIdentifier: com.apple.broadcast-services-upload
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SampleHandler
 
 schemes:
   BatchBuddy:

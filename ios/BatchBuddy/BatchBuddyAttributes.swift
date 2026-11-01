@@ -15,4 +15,9 @@ struct BatchBuddyAttributes: ActivityAttributes {
     }
 
     var sessionName: String
+    var gasPricePerLitreCAD: Double
+    var fuelLitresPer100Km: Double
+    var maintenanceCostPerKmCAD: Double
+    var minimumPayPerKilometreCAD: Double
+    var minimumHourlyRateCAD: Double
 }

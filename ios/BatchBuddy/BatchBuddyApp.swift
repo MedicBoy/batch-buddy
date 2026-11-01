@@ -2,6 +2,8 @@ import SwiftUI
 import PhotosUI
 import Vision
 import ImageIO
+import ReplayKit
+import ActivityKit
 
 @main
 struct BatchBuddyApp: App { var body: some Scene { WindowGroup { ContentView() } } }
@@ -15,6 +17,8 @@ struct ContentView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var scanStatus = "Choose an offer screenshot or photo. Scanning stays on this phone."
     @State private var extractedText = ""
+    @State private var monitorPrepared = false
+    @State private var monitorStatus = "Start a user-controlled screen broadcast to detect visible offers locally."
     @FocusState private var focusedField: EntryField?
     @AppStorage("vehicleName") private var vehicleName = "2019 Hyundai Elantra Sport • 6-speed manual"
     @AppStorage("gasPricePerLitre") private var gasPricePerLitre = 1.55
@@ -32,13 +36,14 @@ struct ContentView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         header
+                        liveMonitorCard
                         scanCard
                         offerCard
                         Button(action: analyze) { Label("Analyze batch", systemImage: "sparkles").font(.headline.weight(.bold)).frame(maxWidth: .infinity).padding(.vertical, 16) }
                             .buttonStyle(.borderedProminent).tint(.cyan).clipShape(RoundedRectangle(cornerRadius: 18))
                         if let advice { verdictCard(advice) }
                         settings
-                        Label("Advice only — you stay in control. Batch Buddy does not sign in to Instacart, accept or reject batches, or send your photo anywhere.", systemImage: "lock.fill")
+                        Label("You stay in control. Batch Buddy does not sign in to Instacart or accept/reject batches. Screen monitoring is user-started, on-device, and not stored or uploaded.", systemImage: "lock.fill")
                             .font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 4).padding(.bottom, 10)
                     }.padding(.horizontal, 16).padding(.vertical, 12)
                 }.scrollDismissesKeyboard(.interactively)
@@ -58,6 +63,54 @@ struct ContentView: View {
             }; Spacer()
             Image(systemName: "car.side.and.exclamationmark").font(.title2).foregroundStyle(.cyan).padding(12).background(.cyan.opacity(0.14), in: Circle())
         }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 4)
+    }
+
+    private var liveMonitorCard: some View {
+        PremiumCard {
+            HStack {
+                Image(systemName: "dot.radiowaves.left.and.right").font(.title3).foregroundStyle(.cyan)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Live offer monitor").font(.headline)
+                    Text("Read visible offer details while Shopper is open").font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            Text("Prepare a Live Activity first, then use Apple's broadcast control below. Switch to Instacart Shopper after the broadcast starts. Batch Buddy samples the screen locally and never stores or uploads frames.")
+                .font(.caption).foregroundStyle(.secondary)
+            Button {
+                guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+                    monitorStatus = "Live Activities are disabled. Enable them in iPhone Settings, then try again."
+                    return
+                }
+                BatchBuddyActivityManager.startMonitoring(
+                    gasPricePerLitre: gasPricePerLitre,
+                    fuelLitresPer100Km: fuelLitresPer100Km,
+                    maintenanceCostPerKm: maintenanceCostPerKm,
+                    minimumPayPerKilometre: minimumPayPerKilometre,
+                    minimumHourlyRate: minimumHourlyRate
+                )
+                monitorPrepared = true
+                monitorStatus = "Live Activity prepared. Tap the iOS broadcast control to start screen monitoring."
+            } label: {
+                Label("Prepare live monitor", systemImage: "car.side").font(.subheadline.weight(.bold))
+                    .frame(maxWidth: .infinity).padding(.vertical, 12)
+            }
+            .buttonStyle(.borderedProminent).tint(.cyan)
+            if monitorPrepared {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Start screen broadcast").font(.subheadline.weight(.semibold))
+                        Text("Tap the system control, choose Batch Buddy, and confirm Start Broadcast.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    BroadcastPickerButton().frame(width: 58, height: 58)
+                }
+            }
+            Text(monitorStatus).font(.caption).foregroundStyle(.secondary)
+            Text("Only one clearly visible offer is analyzed. Multiple offers or unreadable item counts show REVIEW instead of guessing. Stop the broadcast using iOS when finished.")
+                .font(.caption2).foregroundStyle(.secondary)
+        }
     }
 
     private var scanCard: some View {
@@ -124,7 +177,7 @@ struct ContentView: View {
         }
         let result = OfferAdvisor.analyze(pay: parsedPay, kilometres: parsedKilometres, items: parsedItems, gasPricePerLitre: gasPricePerLitre, fuelLitresPer100Km: fuelLitresPer100Km, maintenanceCostPerKm: maintenanceCostPerKm, minimumPayPerKilometre: minimumPayPerKilometre, minimumHourlyRate: minimumHourlyRate)
         advice = result
-        BatchBuddyActivityManager.publish(advice: result, pay: parsedPay, kilometres: parsedKilometres, items: parsedItems)
+        BatchBuddyActivityManager.publish(advice: result, pay: parsedPay, kilometres: parsedKilometres, items: parsedItems, gasPricePerLitre: gasPricePerLitre, fuelLitresPer100Km: fuelLitresPer100Km, maintenanceCostPerKm: maintenanceCostPerKm, minimumPayPerKilometre: minimumPayPerKilometre, minimumHourlyRate: minimumHourlyRate)
     }
     private func currency(_ value: Double) -> String { value.formatted(.currency(code: "CAD")) }
     private func scan(_ item: PhotosPickerItem) async {
@@ -135,6 +188,17 @@ struct ContentView: View {
         scanStatus = text.isEmpty ? "No offer details found. You can enter them below." : "Scan complete. Confirm the fields, then analyze."
     }
     private func recognizeText(in data: Data) async -> String { await withCheckedContinuation { continuation in DispatchQueue.global(qos: .userInitiated).async { guard let source = CGImageSourceCreateWithData(data as CFData, nil), let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceThumbnailMaxPixelSize: 1800] as CFDictionary) else { continuation.resume(returning: ""); return }; let request = VNRecognizeTextRequest { request, _ in let lines = (request.results as? [VNRecognizedTextObservation] ?? []).compactMap { $0.topCandidates(1).first?.string }; continuation.resume(returning: lines.joined(separator: "\n")) }; request.recognitionLevel = .accurate; request.usesLanguageCorrection = true; try? VNImageRequestHandler(cgImage: image).perform([request]) } } }
+}
+
+private struct BroadcastPickerButton: UIViewRepresentable {
+    func makeUIView(context: Context) -> RPSystemBroadcastPickerView {
+        let picker = RPSystemBroadcastPickerView(frame: .zero)
+        picker.preferredExtension = "com.batchbuddy.advisor.broadcast"
+        picker.showsMicrophoneButton = false
+        return picker
+    }
+
+    func updateUIView(_ uiView: RPSystemBroadcastPickerView, context: Context) {}
 }
 
 private struct PremiumCard<Content: View>: View { let background: AnyShapeStyle; let content: Content; init(@ViewBuilder content: () -> Content) { background = AnyShapeStyle(Color.white.opacity(0.08)); self.content = content() }; init<S: ShapeStyle>(background: S, @ViewBuilder content: () -> Content) { self.background = AnyShapeStyle(background); self.content = content() }; var body: some View { VStack(alignment: .leading, spacing: 12) { content }.padding(16).frame(maxWidth: .infinity, alignment: .leading).background(background, in: RoundedRectangle(cornerRadius: 22, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(.white.opacity(0.10), lineWidth: 1)) } }
