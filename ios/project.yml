@@ -36,6 +36,7 @@ targets:
         SKIP_INSTALL: YES
         SWIFT_VERSION: 6.0
     info:
+      path: BatchBuddyWidget/Info.plist
       properties:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
