@@ -31,6 +31,7 @@ targets:
         MARKETING_VERSION: 1.2.0
         CURRENT_PROJECT_VERSION: 11
     info:
+      path: BatchBuddy/Info.plist
       properties:
         UIBackgroundModes:
           - remote-notification
