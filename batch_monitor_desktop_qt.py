@@ -57,6 +57,12 @@ def asset_path(name: str) -> Path:
     return root / "assets" / name
 
 
+def tokens_file_path() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent / "tokens.txt"
+    return Path(__file__).resolve().parent / "tokens.txt"
+
+
 class RadarWidget(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -148,6 +154,7 @@ class BatchBuddyWindow(QMainWindow):
         self.selected_signature: str | None = None
         self._build_ui()
         self._load_config()
+        self._load_tokens_file(silent=True)
         self._refresh_stats()
         self._refresh_history()
         self.event_timer = QTimer(self)
@@ -351,6 +358,15 @@ class BatchBuddyWindow(QMainWindow):
         page.addWidget(history_panel)
 
         settings_layout.addWidget(self._settings_card("CONNECTION SETTINGS", [("ActivitySmith API key", "activitysmith", True), ("Instacart auth token", "auth", True), ("Instacart cookies", "cookies", True), ("Shopper ID", "shopper", False)]))
+        token_actions = QHBoxLayout()
+        self.load_tokens_button = QPushButton("Load Tokens")
+        self.load_tokens_button.clicked.connect(lambda: self._load_tokens_file(silent=False))
+        token_actions.addWidget(self.load_tokens_button)
+        self.tokens_status = QLabel(f"Looks for tokens.txt beside the app")
+        self.tokens_status.setObjectName("muted")
+        token_actions.addWidget(self.tokens_status)
+        token_actions.addStretch(1)
+        settings_layout.addLayout(token_actions)
         native = self._settings_card("NATIVE LIVE ACTIVITY / CARPLAY (OPTIONAL)", [("ActivityKit push token", "push_token", True), ("Apple Team ID", "team_id", False), ("Apple Key ID", "key_id", False), ("Private .p8 key path", "private_key_path", False)], apns=True)
         settings_layout.addWidget(native)
         settings_actions = QHBoxLayout()
@@ -490,6 +506,46 @@ class BatchBuddyWindow(QMainWindow):
                     self.apns_vars[name].setText(str(value))
         except (FileNotFoundError, json.JSONDecodeError, OSError):
             self.vars["shopper"].setText("40757189")
+
+    def _load_tokens_file(self, silent: bool = False) -> None:
+        path = tokens_file_path()
+        try:
+            lines = path.read_text(encoding="utf-8-sig").splitlines()
+        except (FileNotFoundError, OSError, UnicodeError):
+            if not silent and hasattr(self, "tokens_status"):
+                self.tokens_status.setText(f"No tokens.txt found beside the app")
+            return
+
+        labels = {
+            "instacart auth token": "auth",
+            "instacart cookies": "cookies",
+            "shopper id": "shopper",
+        }
+        found: dict[str, str] = {}
+        for index, raw_line in enumerate(lines):
+            line = raw_line.strip()
+            normalized = line.lower().rstrip(":")
+            matched = next((key for key in labels if normalized == key), None)
+            if not matched:
+                continue
+            value = ""
+            for candidate in lines[index + 1 :]:
+                candidate = candidate.strip()
+                if candidate:
+                    value = candidate
+                    break
+            if value:
+                found[labels[matched]] = value
+
+        for name in ("auth", "cookies", "shopper"):
+            if found.get(name):
+                self.vars[name].setText(found[name])
+        missing = [name for name in ("auth", "cookies", "shopper") if name not in found]
+        if hasattr(self, "tokens_status"):
+            if missing:
+                self.tokens_status.setText(f"Loaded {len(found)}/3 values from tokens.txt")
+            else:
+                self.tokens_status.setText("Loaded tokens.txt successfully")
 
     def _save_config(self) -> None:
         CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
