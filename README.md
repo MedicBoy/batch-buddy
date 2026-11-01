@@ -38,3 +38,8 @@ On a Mac with Xcode and an iOS 18+ test iPhone, create the native SwiftUI host a
 - [Apple: Personal Team limits](https://developer.apple.com/help/account/basics/about-your-developer-account)
 - [Apple: Xcode system requirements](https://developer.apple.com/xcode/system-requirements)
 - [Sideloadly FAQ](https://sideloadly.io/faq)
+
+
+## Planned live-offer and in-car work
+
+See [the live-offer and CarPlay roadmap](docs/LIVE-OFFERS-AND-CARPLAY-ROADMAP.md). CarPlay support is a feasibility question until Apple confirms the required category/entitlement; live screen assistance must be user-initiated and advisory-only.
