@@ -33,9 +33,13 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.batchbuddy.advisor.widget
         PRODUCT_NAME: BatchBuddyWidget
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: com.apple.widgetkit-extension
         SKIP_INSTALL: YES
         SWIFT_VERSION: 6.0
+    info:
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).BatchBuddyWidgetBundle
 
   BatchBuddyTests:
     type: bundle.unit-test
