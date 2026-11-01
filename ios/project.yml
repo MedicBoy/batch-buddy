@@ -22,7 +22,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_NSSupportsLiveActivities: YES
-        SWIFT_VERSION: 6.0
+        SWIFT_VERSION: 5.9
         CODE_SIGN_ENTITLEMENTS: BatchBuddy/BatchBuddy.entitlements
         MARKETING_VERSION: 1.2.0
         CURRENT_PROJECT_VERSION: 11
@@ -45,7 +45,7 @@ targets:
         PRODUCT_NAME: BatchBuddyWidget
         GENERATE_INFOPLIST_FILE: YES
         SKIP_INSTALL: YES
-        SWIFT_VERSION: 6.0
+        SWIFT_VERSION: 5.9
         MARKETING_VERSION: 1.2.0
         CURRENT_PROJECT_VERSION: 11
     info:
@@ -69,7 +69,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         SKIP_INSTALL: YES
         APPLICATION_EXTENSION_API_ONLY: YES
-        SWIFT_VERSION: 6.0
+        SWIFT_VERSION: 5.9
         MARKETING_VERSION: 1.2.0
         CURRENT_PROJECT_VERSION: 11
     info:
