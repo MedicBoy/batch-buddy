@@ -9,6 +9,9 @@ targets:
     type: application
     platform: iOS
     sources: [BatchBuddy]
+    dependencies:
+      - target: BatchBuddyWidget
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.batchbuddy.advisor
@@ -16,6 +19,22 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_NSSupportsLiveActivities: YES
+        SWIFT_VERSION: 6.0
+
+  BatchBuddyWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - BatchBuddyWidget
+      - BatchBuddy/BatchBuddyAttributes.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.batchbuddy.advisor.widget
+        PRODUCT_NAME: BatchBuddyWidget
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        SKIP_INSTALL: YES
         SWIFT_VERSION: 6.0
 
   BatchBuddyTests:
