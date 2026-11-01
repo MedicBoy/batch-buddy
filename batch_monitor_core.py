@@ -36,6 +36,8 @@ class MonitorConfig:
     apple_private_key_path: str = ""
     bundle_id: str = "com.batchbuddy.advisor"
     apns_production: bool = False
+    ahoy_visitor: str = "9138ED9D2AEA4B0893673C99C6B697BA"
+    ahoy_visit: str = "27B0A4F2-B306-4D4E-899E-022670C711B2"
 
 
 @dataclass(frozen=True)
@@ -160,12 +162,14 @@ class BatchMonitor:
 
     def check_once(self) -> BatchResult | None:
         headers = {
-            "accept": "application/json",
+            "accept": "application/json;version=3",
             "content-type": "application/protobuf",
             "authorization": self.config.auth_token,
             "cookie": self.config.cookies,
             "x-shopper-id": self.config.shopper_id,
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/110.0.0.0 Safari/537.36",
+            "user-agent": "Instacart Shopper 4.503.0 (store), (iOS 26.6.1) (iPhone18,2)",
+            "ahoy-visitor": self.config.ahoy_visitor,
+            "ahoy-visit": self.config.ahoy_visit,
             "accept-language": "en-CA,en;q=0.9",
             "origin": "https://shopper.instacart.com",
             "referer": "https://shopper.instacart.com/",
@@ -182,6 +186,14 @@ class BatchMonitor:
             time.sleep(30)
             return None
         response.raise_for_status()
+
+        response_size = len(response.content)
+        if response_size <= 500:
+            if response_size == 437:
+                self._status("Shopper returned its 437-byte empty response; no available batches in this poll.")
+            else:
+                self._status(f"Shopper returned a short empty response ({response_size} bytes); waiting for a batch.")
+            return None
 
         response_text = response.text
         numbers = re.findall(r"\d+(?:\.\d+)?", response_text)
