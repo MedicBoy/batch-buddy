@@ -392,14 +392,14 @@ class BatchBuddyWindow(QMainWindow):
         smith_layout.addLayout(smith_actions)
         smith_live_grid = QGridLayout()
         smith_live_grid.setSpacing(12)
-        self.smith_connection_value, self.smith_connection_detail = self._smith_status_panel("Connection", "Not tested", "Use the test button to verify the API key.")
-        self.smith_delivery_value, self.smith_delivery_detail = self._smith_status_panel("Last delivery", "No delivery yet", "Waiting for a valid batch.")
-        self.smith_activity_value, self.smith_activity_detail = self._smith_status_panel("Live Activity", "Standby", "No current native activity update.")
-        self.smith_metrics_value, self.smith_metrics_detail = self._smith_status_panel("Metric widgets", "—", "Latest pay · net · hourly")
-        smith_live_grid.addWidget(self.smith_connection_value.parentWidget(), 0, 0)
-        smith_live_grid.addWidget(self.smith_delivery_value.parentWidget(), 0, 1)
-        smith_live_grid.addWidget(self.smith_activity_value.parentWidget(), 1, 0)
-        smith_live_grid.addWidget(self.smith_metrics_value.parentWidget(), 1, 1)
+        self.smith_connection_panel, self.smith_connection_value, self.smith_connection_detail = self._smith_status_panel("Connection", "Not tested", "Use the test button to verify the API key.")
+        self.smith_delivery_panel, self.smith_delivery_value, self.smith_delivery_detail = self._smith_status_panel("Last delivery", "No delivery yet", "Waiting for a valid batch.")
+        self.smith_activity_panel, self.smith_activity_value, self.smith_activity_detail = self._smith_status_panel("Live Activity", "Standby", "No current native activity update.")
+        self.smith_metrics_panel, self.smith_metrics_value, self.smith_metrics_detail = self._smith_status_panel("Metric widgets", "—", "Latest pay · net · hourly")
+        smith_live_grid.addWidget(self.smith_connection_panel, 0, 0)
+        smith_live_grid.addWidget(self.smith_delivery_panel, 0, 1)
+        smith_live_grid.addWidget(self.smith_activity_panel, 1, 0)
+        smith_live_grid.addWidget(self.smith_metrics_panel, 1, 1)
         smith_layout.addLayout(smith_live_grid)
         self.smith_log = QLabel("Delivery log\nNo ActivitySmith events recorded in this session.")
         self.smith_log.setObjectName("muted")
@@ -427,7 +427,7 @@ class BatchBuddyWindow(QMainWindow):
         smith_layout.addStretch(1)
         tabs.insertTab(1, smith_page, "ActivitySmith")
 
-    def _smith_status_panel(self, title: str, value: str, detail: str) -> tuple[QLabel, QLabel]:
+    def _smith_status_panel(self, title: str, value: str, detail: str) -> tuple[QFrame, QLabel, QLabel]:
         panel = QFrame()
         panel.setObjectName("surface")
         layout = QVBoxLayout(panel)
@@ -442,8 +442,7 @@ class BatchBuddyWindow(QMainWindow):
         layout.addWidget(heading)
         layout.addWidget(value_label)
         layout.addWidget(detail_label)
-        value_label.setProperty("panel", panel)
-        return value_label, detail_label
+        return panel, value_label, detail_label
 
     def _settings_card(self, title: str, fields: list[tuple[str, str, bool]], apns: bool = False) -> QFrame:
         card = QFrame()
