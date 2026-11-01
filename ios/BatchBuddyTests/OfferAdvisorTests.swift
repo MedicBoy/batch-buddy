@@ -1,6 +1,4 @@
 import XCTest
-@testable import BatchBuddy
-
 final class OfferAdvisorTests: XCTestCase {
     func testStrongOfferClearsBothTargets() {
         let advice = OfferAdvisor.analyze(OfferInput(
