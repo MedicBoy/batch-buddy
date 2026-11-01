@@ -10,6 +10,8 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Generate Xcode project
@@ -22,4 +24,4 @@ jobs:
         with:
           name: BatchBuddy-unsigned-ipa
           path: BatchBuddy-unsigned.ipa
-          retention-days: 1
+          retention-days: 14

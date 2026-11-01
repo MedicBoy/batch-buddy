@@ -3,13 +3,17 @@ import UIKit
 
 struct BatchAlertView: View {
     @Binding var showPopup: Bool
+    let pay: Double
+    let kilometres: Double
+    let items: Int
+    let advice: OfferAdvice
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("Instacart batch").font(.title3.weight(.bold))
-                    Text("20.0 km • 2 stores • 18 items").font(.subheadline).foregroundStyle(.white.opacity(0.60))
+                    Text("\(kilometres, specifier: "%.1f") km • \(items) items").font(.subheadline).foregroundStyle(.white.opacity(0.60))
                 }
                 Spacer()
                 Button { showPopup = false } label: {
@@ -19,22 +23,26 @@ struct BatchAlertView: View {
 
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("$22.25").font(.system(size: 42, weight: .bold, design: .rounded))
+                    Text(pay, format: .currency(code: "CAD")).font(.system(size: 42, weight: .bold, design: .rounded))
                     Text("Estimated batch pay").font(.caption).foregroundStyle(.white.opacity(0.55))
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 5) {
                     Text("NET").font(.caption2.weight(.bold)).foregroundStyle(.white.opacity(0.55))
-                    Text("$16.25").font(.headline.weight(.bold)).foregroundStyle(.green)
-                    Text("$24.38/hr").font(.subheadline.weight(.semibold)).foregroundStyle(.cyan)
+                    Text(advice.estimatedNet, format: .currency(code: "CAD")).font(.headline.weight(.bold)).foregroundStyle(.green)
+                    Text(advice.hourlyRate, format: .currency(code: "CAD")).font(.subheadline.weight(.semibold)).foregroundStyle(.cyan)
                 }
             }
             .padding(16).background(.black.opacity(0.20), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
 
-            Label("BatchBuddy recommends: Accept", systemImage: "checkmark.circle.fill")
-                .font(.subheadline.weight(.semibold)).foregroundStyle(.green)
+            Label("BatchBuddy recommends: \(advice.recommendation)", systemImage: advice.recommendation == "TAKE" ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .font(.subheadline.weight(.semibold)).foregroundStyle(advice.recommendation == "TAKE" ? .green : .orange)
                 .padding(.horizontal, 12).padding(.vertical, 10)
                 .background(.green.opacity(0.14), in: Capsule())
+
+            Text(advice.message)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.70))
 
             HStack(spacing: 12) {
                 Button("Ignore") { showPopup = false }
@@ -61,5 +69,24 @@ struct BatchAlertView: View {
 }
 
 #Preview {
-    ZStack { Color.black.ignoresSafeArea(); BatchAlertView(showPopup: .constant(true)) }
+    ZStack {
+        Color.black.ignoresSafeArea()
+        BatchAlertView(
+            showPopup: .constant(true),
+            pay: 22.25,
+            kilometres: 20,
+            items: 18,
+            advice: OfferAdvice(
+                recommendation: "TAKE",
+                score: 92,
+                payPerKilometre: 1.11,
+                hourlyRate: 28.50,
+                fuelCost: 3.46,
+                maintenanceCost: 2.40,
+                estimatedNet: 16.39,
+                estimatedMinutes: 47,
+                message: "Clears both targets."
+            )
+        )
+    }
 }
