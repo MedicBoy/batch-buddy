@@ -103,7 +103,7 @@ struct ContentView: View {
                 monitorStatus = "Preparing Live Activity…"
                 Task { @MainActor in
                     do {
-                        try await BatchBuddyActivityManager.startMonitoring(
+                        let remotePushesAvailable = try await BatchBuddyActivityManager.startMonitoring(
                             gasPricePerLitre: gasPricePerLitre,
                             fuelLitresPer100Km: fuelLitresPer100Km,
                             maintenanceCostPerKm: maintenanceCostPerKm,
@@ -111,7 +111,9 @@ struct ContentView: View {
                             minimumHourlyRate: minimumHourlyRate
                         )
                         monitorPrepared = true
-                        monitorStatus = "Live Activity ready. Tap Start screen broadcast below, choose Batch Buddy, then open Shopper."
+                        monitorStatus = remotePushesAvailable
+                            ? "Live Activity ready. Tap Start screen broadcast below, choose Batch Buddy, then open Shopper."
+                            : "Live Activity ready locally. Tap Start screen broadcast below, choose Batch Buddy, then open Shopper. Remote push token setup is unavailable in this sideloaded build."
                     } catch {
                         monitorStatus = "Could not prepare Live Activity: \(error.localizedDescription)"
                     }

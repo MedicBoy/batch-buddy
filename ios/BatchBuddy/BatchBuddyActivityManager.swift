@@ -22,7 +22,7 @@ enum BatchBuddyActivityManager {
         maintenanceCostPerKm: Double,
         minimumPayPerKilometre: Double,
         minimumHourlyRate: Double
-    ) async throws {
+    ) async throws -> Bool {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             throw StartError.disabled
         }
@@ -50,12 +50,18 @@ enum BatchBuddyActivityManager {
             updatedAt: Date()
         )
 
-        let activity = try Activity.request(
-            attributes: attributes,
-            content: ActivityContent(state: initialState, staleDate: Date().addingTimeInterval(30 * 60)),
-            pushType: .token
-        )
-        observePushToken(for: activity)
+        let content = ActivityContent(state: initialState, staleDate: Date().addingTimeInterval(30 * 60))
+        do {
+            let activity = try Activity.request(attributes: attributes, content: content, pushType: .token)
+            observePushToken(for: activity)
+            return true
+        } catch {
+            // Unsigned/sideloaded builds may not carry aps-environment. Keep the
+            // local Live Activity usable even when remote push tokens are unavailable.
+            let activity = try Activity.request(attributes: attributes, content: content, pushType: nil)
+            _ = activity
+            return false
+        }
     }
 
     static func publish(
