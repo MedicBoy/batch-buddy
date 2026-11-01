@@ -15,7 +15,7 @@ jobs:
       - name: Generate Xcode project
         run: brew install xcodegen && cd ios && xcodegen generate
       - name: Run unit tests
-        run: xcodebuild test -project ios/BatchBuddy.xcodeproj -scheme BatchBuddy -destination 'platform=iOS Simulator,name=iPhone 17' CODE_SIGNING_ALLOWED=NO
+        run: xcodebuild test -project ios/BatchBuddy.xcodeproj -scheme BatchBuddy -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO
       - name: Build without Apple signing
         run: xcodebuild -project ios/BatchBuddy.xcodeproj -scheme BatchBuddy -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
       - name: Package IPA
