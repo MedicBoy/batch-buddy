@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import json
 import threading
 import time
 import winsound
@@ -61,6 +62,79 @@ def _first_number(patterns: tuple[str, ...], text: str) -> float | None:
     return None
 
 
+def _number(value: object) -> float | None:
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return float(value)
+    if isinstance(value, str):
+        match = re.search(r"-?\d+(?:\.\d+)?", value.replace(",", ""))
+        if match:
+            return float(match.group(0))
+    return None
+
+
+def _walk_payload(value: object, path: str = "") -> list[tuple[str, float]]:
+    found: list[tuple[str, float]] = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            key_path = f"{path}.{key}".lower()
+            number = _number(child)
+            if number is not None:
+                found.append((key_path, number))
+            found.extend(_walk_payload(child, key_path))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            found.extend(_walk_payload(child, f"{path}[{index}]"))
+    return found
+
+
+def _payload_number(payload: list[tuple[str, float]], patterns: tuple[str, ...]) -> float | None:
+    for pattern in patterns:
+        regex = re.compile(pattern, re.IGNORECASE)
+        for path, value in payload:
+            if regex.search(path):
+                return value
+    return None
+
+
+def parse_offer_text(response_text: str) -> tuple[float | None, float | None, int | None]:
+    """Extract pay, kilometres, and item count from varied offer payloads.
+
+    The endpoint has returned both JSON-like text and protobuf/diagnostic text
+    over time, so this intentionally uses structured keys first and visible
+    human-readable patterns second.
+    """
+    payload: list[tuple[str, float]] = []
+    try:
+        decoded = json.loads(response_text)
+        payload = _walk_payload(decoded)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        pass
+
+    pay = _payload_number(payload, (r"(?:^|\.)(?:pay|batch[_-]?pay|offer[_-]?pay|earnings|total[_-]?(?:pay|earnings)|estimated[_-]?earnings|amount)(?:$|\.)",))
+    distance = _payload_number(payload, (r"(?:distance|mileage|route[_-]?distance|drive[_-]?distance|kilomet(?:er|re)s?|miles?).*(?:km|kilomet|mile)?$",))
+    items = _payload_number(payload, (r"(?:items?|units?|quantity|item[_-]?count|number[_-]?of[_-]?items)(?:$|\.)",))
+
+    currency_values = [float(match.group(1).replace(",", "")) for match in re.finditer(r"(?:\$|CAD\s*)\s*([0-9]+(?:[,.][0-9]{1,2})?)", response_text, re.IGNORECASE)]
+    if pay is None:
+        pay = currency_values[0] if currency_values else _first_number((r"(?:pay|earnings|amount|offer)[^\d]{0,45}([0-9]+(?:\.[0-9]{1,2})?)",), response_text)
+
+    distance_match = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*(km|kilometers?|kilometres?|mi|miles?)\b", response_text, re.IGNORECASE)
+    if distance is None and distance_match:
+        distance = float(distance_match.group(1))
+        if distance_match.group(2).lower().startswith(("mi", "mile")):
+            distance *= 1.60934
+    if distance is None:
+        distance = _first_number((r"(?:distance|mileage|route)[^\d]{0,45}([0-9]+(?:\.[0-9]+)?)",), response_text)
+
+    item_match = re.search(r"([0-9]+)\s*(?:items?|units?)\b", response_text, re.IGNORECASE)
+    if items is None and item_match:
+        items = float(item_match.group(1))
+    if items is None:
+        items = _first_number((r"(?:items?|units?|quantity|item[_-]?count)[^\d]{0,35}([0-9]+)",), response_text)
+
+    return pay, distance, int(items) if items is not None else None
+
+
 class BatchMonitor:
     def __init__(
         self,
@@ -109,19 +183,9 @@ class BatchMonitor:
             return None
         self._last_batch_signature = current_signature
 
-        pay = _first_number(
-            (
-                r"(?:pay|earnings|total[_ ]?pay|batch[_ ]?pay)[^\d$]{0,30}\$?([0-9]+(?:\.[0-9]{1,2})?)",
-                r"\$\s*([0-9]+\.[0-9]{1,2})",
-            ),
-            response_text,
-        )
-        distance = _first_number(
-            (r"(?:distance|miles|kilomet(?:er|re)s?)[^\d]{0,30}([0-9]+(?:\.[0-9]{1,2})?)",),
-            response_text,
-        )
+        pay, distance, parsed_items = parse_offer_text(response_text)
         if pay is None or distance is None or distance <= 0:
-            self._status("Live response received, but no complete batch details were found.")
+            self._status(f"Live response received, but offer fields were not recognized (response {len(response_text)} chars). Monitor is still running.")
             return None
 
         fuel_cost = distance * self.config.fuel_economy / 100 * self.config.gas_price
@@ -131,11 +195,7 @@ class BatchMonitor:
         pay_per_km = pay / distance
         recommendation = "✅ ACCEPT" if pay_per_km >= 1.00 and hourly_estimate >= 25.00 else "⚠️ CONSIDER"
         body = f"Pay: ${pay} | Dist: {distance}km\nNet: ${net_estimate:.2f} | $/hr: ${hourly_estimate:.2f}"
-        item_value = _first_number(
-            (r"(?:items?|units?)[^\d]{0,20}([0-9]+)",),
-            response_text,
-        )
-        items = int(item_value or 0)
+        items = int(parsed_items or 0)
         body = f"Pay: ${pay} | Dist: {distance}km | Items: {items}\nNet: ${net_estimate:.2f} | $/hr: ${hourly_estimate:.2f}"
         observed_at = time.time()
         result = BatchResult(
