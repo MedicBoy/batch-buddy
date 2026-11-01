@@ -1,0 +1,36 @@
+name: Build iPhone app
+on:
+  push:
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios-build.yml"
+  pull_request:
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios-build.yml"
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+      - name: Build unsigned iOS archive
+        working-directory: ios
+        run: xcodebuild -project BatchBuddy.xcodeproj -scheme BatchBuddy -configuration Release -destination "generic/platform=iOS" -archivePath "$RUNNER_TEMP/BatchBuddy.xcarchive" CODE_SIGNING_ALLOWED=NO archive
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$RUNNER_TEMP/BatchBuddy.xcarchive/Products/Applications/BatchBuddy.app" "$RUNNER_TEMP/ipa/Payload/"
+          cd "$RUNNER_TEMP/ipa"
+          zip -qr "$RUNNER_TEMP/BatchBuddy-unsigned.ipa" Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BatchBuddy-unsigned-IPA
+          path: ${{ runner.temp }}/BatchBuddy-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
