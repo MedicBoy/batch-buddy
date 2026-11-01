@@ -49,3 +49,10 @@ See [the live-offer and CarPlay roadmap](docs/LIVE-OFFERS-AND-CARPLAY-ROADMAP.md
 The iPhone advisor now has a normalized `OfferInput` model with CAD and kilometres as its canonical units. The calculation entry point is independent of SwiftUI so the same logic can be called by manual entry, reviewed OCR results, and future interfaces if platform rules permit. Native XCTest coverage has been added for strong/weak offers, invalid numeric inputs, and zero-distance handling.
 
 These changes are on the `feature/carplay-and-live-offer-roadmap` branch and have not yet been built or tested on an Xcode runner. They do not add CarPlay entitlement or live screen capture.
+
+
+## CarPlay verdict display (iOS 26)
+
+The native iPhone app now includes a WidgetKit Live Activity target. When you manually analyze an offer in the iPhone app, Batch Buddy publishes the resulting TAKE / CONSIDER / SKIP verdict to a Live Activity. On iOS 26, supported Live Activities can appear in CarPlay Dashboard. Enable Live Activities for Batch Buddy in iPhone Settings and allow the activity to start from the app.
+
+This is the first display integration only: it does **not** detect Instacart offers automatically. A new offer still has to reach the advisor through a supported, user-authorized input path. CarPlay Live Activities are glance-only; they do not accept or decline batches.
