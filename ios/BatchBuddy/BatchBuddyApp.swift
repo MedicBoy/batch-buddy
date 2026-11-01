@@ -111,7 +111,21 @@ struct ContentView: View {
 
     private var targetMenu: some View { Menu { Button("Quick fill — $0.60/km • $17/hr") { setTargets(0.60, 17) }; Button("Balanced — $0.80/km • $20/hr") { setTargets(0.80, 20) }; Button("Strong — $1.00/km • $25/hr") { setTargets(1.00, 25) }; Button("Premium — $1.20/km • $30/hr") { setTargets(1.20, 30) } } label: { Image(systemName: "target").font(.title3.weight(.bold)).foregroundStyle(.orange).padding(9).background(.orange.opacity(0.16), in: Circle()) }.accessibilityLabel("Choose target preset") }
     private func setTargets(_ perKilometre: Double, _ hourly: Double) { minimumPayPerKilometre = perKilometre; minimumHourlyRate = hourly }
-    private func analyze() { focusedField = nil; advice = OfferAdvisor.analyze(pay: Double(pay) ?? 0, kilometres: Double(kilometres) ?? 0, items: Int(items) ?? 0, gasPricePerLitre: gasPricePerLitre, fuelLitresPer100Km: fuelLitresPer100Km, maintenanceCostPerKm: maintenanceCostPerKm, minimumPayPerKilometre: minimumPayPerKilometre, minimumHourlyRate: minimumHourlyRate) }
+    private func analyze() {
+        focusedField = nil
+        let normalizedPay = pay.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "$", with: "").replacingOccurrences(of: ",", with: ".")
+        let normalizedKilometres = kilometres.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
+        guard let parsedPay = Double(normalizedPay), parsedPay.isFinite, parsedPay > 0,
+              let parsedKilometres = Double(normalizedKilometres), parsedKilometres.isFinite, parsedKilometres > 0,
+              let parsedItems = Int(items.trimmingCharacters(in: .whitespacesAndNewlines)), parsedItems >= 0 else {
+            advice = nil
+            scanStatus = "Enter a valid pay amount, distance in kilometres, and item count before analyzing."
+            return
+        }
+        let result = OfferAdvisor.analyze(pay: parsedPay, kilometres: parsedKilometres, items: parsedItems, gasPricePerLitre: gasPricePerLitre, fuelLitresPer100Km: fuelLitresPer100Km, maintenanceCostPerKm: maintenanceCostPerKm, minimumPayPerKilometre: minimumPayPerKilometre, minimumHourlyRate: minimumHourlyRate)
+        advice = result
+        BatchBuddyActivityManager.publish(advice: result, pay: parsedPay, kilometres: parsedKilometres, items: parsedItems)
+    }
     private func currency(_ value: Double) -> String { value.formatted(.currency(code: "CAD")) }
     private func scan(_ item: PhotosPickerItem) async {
         scanStatus = "Scanning on this phone…"
