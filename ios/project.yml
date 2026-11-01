@@ -17,3 +17,15 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         SWIFT_VERSION: 6.0
+
+  BatchBuddyTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [BatchBuddyTests]
+    dependencies:
+      - target: BatchBuddy
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.batchbuddy.advisor.tests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: 6.0
