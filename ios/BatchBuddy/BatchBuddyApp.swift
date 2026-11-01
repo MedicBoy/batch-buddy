@@ -11,6 +11,7 @@ import AVFoundation
 struct BatchBuddyApp: App { var body: some Scene { WindowGroup { ContentView() } } }
 
 // MARK: - PUSHER MANAGER
+@MainActor // 👈 This fixes the Swift 6 error!
 class PusherManager: ObservableObject {
     // ⚠️ PASTE YOUR PUSHER KEYS HERE!
     private let pusherKey = "157cde463247a243cbbf" 
@@ -31,11 +32,12 @@ class PusherManager: ObservableObject {
         
         let channel = pusher.subscribe("batch-channel")
         
-        _ = channel.bind(eventName: "new-batch", eventCallback: { (event: PusherEvent) in
+        _ = channel.bind(eventName: "new-batch", eventCallback: { [weak self] (event: PusherEvent) in
+            guard let self = self else { return }
             if let data = event.data?.data(using: .utf8) {
                 do {
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        DispatchQueue.main.async {
+                        Task { @MainActor in
                             self.pay = json["pay"] as? String ?? "$0.00"
                             self.distance = json["distance"] as? String ?? "0.0 km"
                             self.net = json["net"] as? String ?? "$0.00"
@@ -57,7 +59,6 @@ class PusherManager: ObservableObject {
 struct ContentView: View {
     enum EntryField: Hashable { case pay, kilometres, items }
     
-    // 👇 ADDED PUSHER MANAGER HERE
     @StateObject var pusherManager = PusherManager()
     
     @State private var pay = ""
@@ -99,7 +100,7 @@ struct ContentView: View {
                     }.padding(.horizontal, 16).padding(.vertical, 12)
                 }.scrollDismissesKeyboard(.interactively)
                 
-                // 👇 THE NEW POPUP OVERLAY
+                // THE NEW POPUP OVERLAY
                 if pusherManager.showPopup {
                     BatchAlertView(
                         pay: pusherManager.pay,
