@@ -59,4 +59,6 @@ For native Batch Buddy Live Activity updates, prepare the Live Activity in the i
 
 Each ActivitySmith alert now includes structured batch metadata (pay, distance, items, fuel, maintenance, net estimate, hourly estimate, recommendation, and timestamp) and searchable tags for the shopper, date, and recommendation. The desktop monitor also keeps a clickable batch history with completed/skipped status, recorded details, and session totals. Completion is a local user decision; the current offer feed does not verify completion inside Shopper.
 
+New batches also update three ActivitySmith metric widgets: `batch-buddy-latest-pay`, `batch-buddy-latest-net`, and `batch-buddy-latest-hourly`. Add those metric names as widgets in ActivitySmith to keep the latest offer numbers visible at a glance.
+
 The Windows executable uses the same Batch Buddy app icon as the iOS app for its file, taskbar, and application-window branding.

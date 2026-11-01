@@ -187,6 +187,13 @@ class BatchMonitor:
             ],
         )
         try:
+            self._smith.metrics.update("batch-buddy-latest-pay", round(pay, 2))
+            self._smith.metrics.update("batch-buddy-latest-net", round(net_estimate, 2))
+            self._smith.metrics.update("batch-buddy-latest-hourly", round(hourly_estimate, 2))
+            self._status("ActivitySmith metric widgets updated.")
+        except Exception as error:
+            self._status(f"ActivitySmith alert sent; metric widgets skipped: {error}")
+        try:
             self._smith.live_activities.stream(
                 "batch-buddy-current",
                 content_state=content_state(
