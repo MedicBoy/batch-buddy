@@ -24,6 +24,8 @@ jobs:
           python-version: '3.12'
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
+      - name: Generate Windows icon from Batch Buddy artwork
+        run: python -c "from PIL import Image; Image.open('ios/BatchBuddy/Assets.xcassets/AppIcon.appiconset/Icon-1024.png').convert('RGBA').save('assets/batchbuddy.ico', format='ICO', sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])"
       - name: Build desktop executable
         run: pyinstaller --noconfirm --clean --onefile --windowed --icon assets/batchbuddy.ico --add-data "assets/batchbuddy.ico;assets" --name BatchBuddyMonitor batch_monitor_desktop_qt.py
       - uses: actions/upload-artifact@v4

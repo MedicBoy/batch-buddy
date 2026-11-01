@@ -3,3 +3,4 @@ curl-cffi
 pyinstaller
 PyJWT
 PySide6
+Pillow
