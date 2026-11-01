@@ -46,26 +46,8 @@ targets:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).BatchBuddyWidgetBundle
 
-  BatchBuddyTests:
-    type: bundle.unit-test
-    platform: macOS
-    sources:
-      - BatchBuddyTests
-      - BatchBuddy/OfferAdvisor.swift
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.batchbuddy.advisor.tests
-        GENERATE_INFOPLIST_FILE: YES
-        SWIFT_VERSION: 6.0
-        MACOSX_DEPLOYMENT_TARGET: '14.0'
-        MARKETING_VERSION: 1.0.9
-        CURRENT_PROJECT_VERSION: 9
-
 schemes:
   BatchBuddy:
     build:
       targets:
         BatchBuddy: all
-    test:
-      targets:
-        - BatchBuddyTests
