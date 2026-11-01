@@ -7,8 +7,10 @@ import winsound
 from dataclasses import dataclass
 from typing import Callable
 
-from activitysmith import ActivitySmith, action
+from activitysmith import ActivitySmith, action, content_state
 from curl_cffi import requests
+
+from apns_live_activity import send_live_activity_update
 
 
 OFFERS_URL = (
@@ -27,16 +29,25 @@ class MonitorConfig:
     fuel_economy: float = 9.4
     maintenance_per_km: float = 0.12
     poll_seconds: int = 8
+    live_activity_push_token: str = ""
+    apple_team_id: str = ""
+    apple_key_id: str = ""
+    apple_private_key_path: str = ""
+    bundle_id: str = "com.batchbuddy.advisor"
+    apns_production: bool = True
 
 
 @dataclass(frozen=True)
 class BatchResult:
     pay: float
     distance: float
+    items: int
     net_estimate: float
     hourly_estimate: float
     recommendation: str
     body: str
+    signature: str = ""
+    observed_at: float = 0.0
 
 
 def _first_number(patterns: tuple[str, ...], text: str) -> float | None:
@@ -116,17 +127,83 @@ class BatchMonitor:
         hourly_estimate = net_estimate / 0.75
         recommendation = "✅ ACCEPT" if pay / distance >= 1.00 and hourly_estimate >= 25.00 else "⚠️ CONSIDER"
         body = f"Pay: ${pay} | Dist: {distance}km\nNet: ${net_estimate:.2f} | $/hr: ${hourly_estimate:.2f}"
-        result = BatchResult(pay, distance, net_estimate, hourly_estimate, recommendation, body)
+        item_value = _first_number(
+            (r"(?:items?|units?)[^\d]{0,20}([0-9]+)",),
+            response_text,
+        )
+        items = int(item_value or 0)
+        body = f"Pay: ${pay} | Dist: {distance}km | Items: {items}\nNet: ${net_estimate:.2f} | $/hr: ${hourly_estimate:.2f}"
+        result = BatchResult(pay, distance, items, net_estimate, hourly_estimate, recommendation, body, current_signature, time.time())
 
         winsound.Beep(1000, 500)
         self._smith.notifications.send(
             title=f"Batch Buddy: {recommendation}",
             message=body,
+            metadata={
+                "pay": pay,
+                "distance_km": distance,
+                "items": items,
+                "net_estimate": net_estimate,
+                "hourly_estimate": hourly_estimate,
+                "recommendation": recommendation,
+                "shopper_id": self.config.shopper_id,
+            },
+            tags=["batch-buddy", f"shopper:{self.config.shopper_id}"],
             actions=[
                 action(title="Accept", type="open_url", url="instacartshopper://"),
                 action(title="Reject", type="open_url", url="activitysmith://dismiss"),
             ],
         )
+        try:
+            self._smith.live_activities.stream(
+                "batch-buddy-current",
+                content_state=content_state(
+                    title=f"Batch Buddy: {recommendation}",
+                    message=body,
+                    type="alert",
+                    color="green" if recommendation == "✅ ACCEPT" else "orange",
+                ),
+                action=action(title="Open Shopper", type="open_url", url="instacartshopper://"),
+                secondary_action=action(title="Reject", type="open_url", url="activitysmith://dismiss"),
+                metadata={
+                    "pay": pay,
+                    "distance_km": distance,
+                    "net_estimate": net_estimate,
+                    "hourly_estimate": hourly_estimate,
+                },
+                tags=["batch-buddy", f"shopper:{self.config.shopper_id}"],
+            )
+        except Exception as error:
+            self._status(f"ActivitySmith alert sent; Live Activity update skipped: {error}")
+
+        if all(
+            (
+                self.config.live_activity_push_token,
+                self.config.apple_team_id,
+                self.config.apple_key_id,
+                self.config.apple_private_key_path,
+            )
+        ):
+            try:
+                send_live_activity_update(
+                    push_token=self.config.live_activity_push_token,
+                    team_id=self.config.apple_team_id,
+                    key_id=self.config.apple_key_id,
+                    private_key_path=self.config.apple_private_key_path,
+                    bundle_id=self.config.bundle_id,
+                    recommendation=recommendation,
+                    pay=pay,
+                    kilometres=distance,
+                    items=items,
+                    estimated_net=net_estimate,
+                    hourly_rate=hourly_estimate,
+                    score=0,
+                    message=body,
+                    production=self.config.apns_production,
+                )
+                self._status("Native Batch Buddy Live Activity updated for Lock Screen/CarPlay.")
+            except Exception as error:
+                self._status(f"ActivitySmith sent; native Live Activity update failed: {error}")
         self.on_batch(result)
         self._status("New live batch sent to ActivitySmith.")
         return result

@@ -1,3 +1,4 @@
 activitysmith
 curl-cffi
 pyinstaller
+PyJWT

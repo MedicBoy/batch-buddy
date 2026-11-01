@@ -3,6 +3,8 @@ import Foundation
 
 @MainActor
 enum BatchBuddyActivityManager {
+    static let pushTokenKey = "batchBuddy.liveActivityPushToken"
+
     static func startMonitoring(
         gasPricePerLitre: Double,
         fuelLitresPer100Km: Double,
@@ -37,11 +39,12 @@ enum BatchBuddyActivityManager {
             )
 
             do {
-                _ = try Activity.request(
+                let activity = try Activity.request(
                     attributes: attributes,
                     content: ActivityContent(state: initialState, staleDate: Date().addingTimeInterval(30 * 60)),
-                    pushType: nil
+                    pushType: .token
                 )
+                observePushToken(for: activity)
             } catch {
                 // The app remains usable if Live Activities are disabled or unavailable.
             }
@@ -86,7 +89,8 @@ enum BatchBuddyActivityManager {
                 await activity.update(content)
             } else {
                 do {
-                    _ = try Activity.request(attributes: attributes, content: content, pushType: nil)
+                    let activity = try Activity.request(attributes: attributes, content: content, pushType: .token)
+                    observePushToken(for: activity)
                 } catch {
                     // Live Activities are optional; the in-app advisor remains available.
                 }
@@ -118,4 +122,21 @@ enum BatchBuddyActivityManager {
             minimumHourlyRateCAD: minimumHourlyRate
         )
     }
+
+    private static func observePushToken(for activity: Activity<BatchBuddyAttributes>) {
+        Task {
+            for await tokenData in activity.pushTokenUpdates {
+                let token = tokenData.map { String(format: "%02x", $0) }.joined()
+                UserDefaults.standard.set(token, forKey: pushTokenKey)
+                NotificationCenter.default.post(
+                    name: .batchBuddyPushTokenUpdated,
+                    object: token
+                )
+            }
+        }
+    }
+}
+
+extension Notification.Name {
+    static let batchBuddyPushTokenUpdated = Notification.Name("batchBuddyPushTokenUpdated")
 }

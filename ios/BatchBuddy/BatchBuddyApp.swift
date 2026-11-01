@@ -4,62 +4,13 @@ import Vision
 import ImageIO
 import ReplayKit
 import ActivityKit
-import PusherSwift
-import AVFoundation
+import UIKit
 
 @main
 struct BatchBuddyApp: App { var body: some Scene { WindowGroup { ContentView() } } }
 
-// MARK: - PUSHER MANAGER
-@MainActor // 👈 This fixes the Swift 6 error!
-class PusherManager: ObservableObject {
-    // ⚠️ PASTE YOUR PUSHER KEYS HERE!
-    private let pusherKey = "157cde463247a243cbbf" 
-    private let pusherCluster = "us2" 
-    
-    var pusher: Pusher!
-    
-    @Published var showPopup = false
-    @Published var pay = "$0.00"
-    @Published var distance = "0.0 km"
-    @Published var net = "$0.00"
-    @Published var hourly = "$0.00/hr"
-    @Published var recommendation = "CONSIDER"
-    
-    init() {
-        let options = PusherClientOptions(host: .cluster(pusherCluster))
-        pusher = Pusher(key: pusherKey, options: options)
-        
-        let channel = pusher.subscribe("batch-channel")
-        
-        _ = channel.bind(eventName: "new-batch", eventCallback: { [weak self] (event: PusherEvent) in
-            guard let self = self else { return }
-            if let data = event.data?.data(using: .utf8) {
-                do {
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        Task { @MainActor in
-                            self.pay = json["pay"] as? String ?? "$0.00"
-                            self.distance = json["distance"] as? String ?? "0.0 km"
-                            self.net = json["net"] as? String ?? "$0.00"
-                            self.hourly = json["hourly"] as? String ?? "$0.00/hr"
-                            self.recommendation = json["recommendation"] as? String ?? "CONSIDER"
-                            
-                            AudioServicesPlaySystemSound(1005) 
-                            withAnimation { self.showPopup = true }
-                        }
-                    }
-                } catch { print("Error parsing JSON") }
-            }
-        })
-        pusher.connect()
-    }
-}
-
-// MARK: - MAIN VIEW
 struct ContentView: View {
     enum EntryField: Hashable { case pay, kilometres, items }
-    
-    @StateObject var pusherManager = PusherManager()
     
     @State private var pay = ""
     @State private var kilometres = ""
@@ -71,6 +22,7 @@ struct ContentView: View {
     @State private var showPopup = false
     @State private var monitorPrepared = false
     @State private var monitorStatus = "Start a user-controlled screen broadcast to detect visible offers locally."
+    @State private var liveActivityPushToken = UserDefaults.standard.string(forKey: BatchBuddyActivityManager.pushTokenKey) ?? ""
     @FocusState private var focusedField: EntryField?
     @AppStorage("vehicleName") private var vehicleName = "2019 Hyundai Elantra Sport • 6-speed manual"
     @AppStorage("gasPricePerLitre") private var gasPricePerLitre = 1.55
@@ -117,6 +69,9 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .principal) { Text("Batch Buddy").font(.headline.weight(.bold)) }; ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Done") { focusedField = nil } } }
             .onChange(of: photoItem) { _, item in guard let item else { return }; Task { @MainActor in await scan(item) } }
+            .onReceive(NotificationCenter.default.publisher(for: .batchBuddyPushTokenUpdated)) { notification in
+                if let token = notification.object as? String { liveActivityPushToken = token }
+            }
         }.preferredColorScheme(.dark)
     }
 
@@ -174,6 +129,19 @@ struct ContentView: View {
                 }
             }
             Text(monitorStatus).font(.caption).foregroundStyle(.secondary)
+            if !liveActivityPushToken.isEmpty {
+                HStack(spacing: 8) {
+                    Label("Remote update token ready", systemImage: "icloud.and.arrow.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.green)
+                    Spacer()
+                    Button("Copy token") {
+                        UIPasteboard.general.string = liveActivityPushToken
+                    }
+                    .font(.caption.weight(.semibold))
+                }
+                .padding(.top, 2)
+            }
             Text("Only one clearly visible offer is analyzed. Multiple offers or unreadable item counts show REVIEW instead of guessing. Stop the broadcast using iOS when finished.")
                 .font(.caption2).foregroundStyle(.secondary)
         }

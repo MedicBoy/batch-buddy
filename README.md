@@ -54,3 +54,5 @@ The original local browser proof of concept remains available through npm start 
 `batch_monitor.py` polls for new batches and sends them to the paired ActivitySmith iPhone app. Install dependencies with `pip install -r requirements.txt`, then set the variables shown in `batch_monitor.example.env` before starting the monitor. Keep the monitor computer awake and connected to the internet; Batch Buddy and Shopper can be closed while ActivitySmith delivers the notification.
 
 The notification's Accept action only opens `instacartshopper://`; it does not accept a batch. Reject/Ignore performs no Shopper action.
+
+For native Batch Buddy Live Activity updates, prepare the Live Activity in the iPhone app and tap **Copy token**. Enter that token, your Apple Team ID, Key ID, and APNs `.p8` private-key path in the desktop monitor. The Apple key is only used locally to update the Batch Buddy activity; ActivitySmith notifications continue to work without APNs configuration.

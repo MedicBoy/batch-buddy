@@ -8,23 +8,27 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import messagebox, ttk
 
+from batch_history import BatchHistory
 from batch_monitor_core import BatchMonitor, BatchResult, MonitorConfig
 
 
 CONFIG_PATH = Path(os.environ.get("APPDATA", Path.home())) / "BatchBuddy" / "monitor.json"
+HISTORY_PATH = Path(os.environ.get("APPDATA", Path.home())) / "BatchBuddy" / "history.sqlite3"
 
 
 class BatchBuddyMonitorApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("Batch Buddy Monitor")
-        self.geometry("620x700")
-        self.minsize(540, 620)
+        self.geometry("700x850")
+        self.minsize(600, 720)
         self.configure(bg="#07131d")
         self._events: queue.Queue[tuple[str, object]] = queue.Queue()
         self._stop_event: threading.Event | None = None
         self._thread: threading.Thread | None = None
+        self._history = BatchHistory(HISTORY_PATH)
         self._vars = {name: tk.StringVar() for name in ("activitysmith", "auth", "cookies", "shopper")}
+        self._apns_vars = {name: tk.StringVar() for name in ("push_token", "team_id", "key_id", "private_key_path")}
         self._build_ui()
         self._load_config()
         self.after(250, self._drain_events)
@@ -60,6 +64,14 @@ class BatchBuddyMonitorApp(tk.Tk):
         self._field(form, 2, "Instacart cookies", "cookies", True)
         self._field(form, 3, "Shopper ID", "shopper", False)
 
+        apns = ttk.LabelFrame(root, text="Native Batch Buddy Live Activity / CarPlay (optional)", padding=14, style="Card.TLabelframe")
+        apns.pack(fill="x", pady=(14, 0))
+        self._field(apns, 0, "ActivityKit push token", "push_token", True, self._apns_vars)
+        self._field(apns, 1, "Apple Team ID", "team_id", False, self._apns_vars)
+        self._field(apns, 2, "Apple Key ID", "key_id", False, self._apns_vars)
+        self._field(apns, 3, "Private .p8 key path", "private_key_path", False, self._apns_vars)
+        ttk.Label(apns, text="Copy the token from Batch Buddy after preparing the Live Activity. The .p8 key stays on this computer.", style="CardMuted.TLabel", wraplength=620).grid(row=4, column=0, columnspan=2, sticky="w", pady=(8, 0))
+
         buttons = ttk.Frame(root)
         buttons.pack(fill="x", pady=14)
         self.start_button = ttk.Button(buttons, text="Start live monitor", command=self._start, style="Accent.TButton")
@@ -74,12 +86,23 @@ class BatchBuddyMonitorApp(tk.Tk):
         self.latest = tk.StringVar(value="No batch received yet.")
         self.latest_label = ttk.Label(card, textvariable=self.latest, font=("Segoe UI", 15, "bold"), justify="left", style="Card.TLabel")
         self.latest_label.pack(anchor="w")
+        decision_buttons = ttk.Frame(card)
+        decision_buttons.pack(fill="x", pady=(14, 0))
+        ttk.Button(decision_buttons, text="Mark completed", command=lambda: self._mark_latest("completed"), style="Accent.TButton").pack(side="left")
+        ttk.Button(decision_buttons, text="Mark skipped", command=lambda: self._mark_latest("skipped")).pack(side="left", padx=8)
+
+        stats = ttk.LabelFrame(root, text="Session statistics", padding=14, style="Card.TLabelframe")
+        stats.pack(fill="x", pady=(14, 0))
+        self.stats = tk.StringVar()
+        ttk.Label(stats, textvariable=self.stats, style="Card.TLabel", font=("Segoe UI", 11), justify="left").pack(anchor="w")
+        self._refresh_stats()
 
         ttk.Label(root, text="Accept only opens Shopper. Reject performs no Shopper action. The monitor must stay running and online to discover new batches.", style="Muted.TLabel", wraplength=500).pack(anchor="w", pady=(18, 0))
 
-    def _field(self, parent: ttk.LabelFrame, row: int, label: str, name: str, secret: bool) -> None:
+    def _field(self, parent: ttk.LabelFrame, row: int, label: str, name: str, secret: bool, variables: dict[str, tk.StringVar] | None = None) -> None:
+        variables = variables or self._vars
         ttk.Label(parent, text=label, style="Card.TLabel").grid(row=row, column=0, sticky="w", pady=5)
-        entry = ttk.Entry(parent, textvariable=self._vars[name], show="•" if secret else "")
+        entry = ttk.Entry(parent, textvariable=variables[name], show="•" if secret else "")
         entry.grid(row=row, column=1, sticky="ew", padx=(12, 0), pady=5)
         parent.columnconfigure(1, weight=1)
 
@@ -89,12 +112,16 @@ class BatchBuddyMonitorApp(tk.Tk):
             for name, value in values.items():
                 if name in self._vars:
                     self._vars[name].set(value)
+                if name in self._apns_vars:
+                    self._apns_vars[name].set(value)
         except (FileNotFoundError, json.JSONDecodeError, OSError):
             self._vars["shopper"].set("40757189")
 
     def _save_config(self) -> None:
         CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        CONFIG_PATH.write_text(json.dumps({name: var.get() for name, var in self._vars.items()}), encoding="utf-8")
+        values = {name: var.get() for name, var in self._vars.items()}
+        values.update({name: var.get() for name, var in self._apns_vars.items()})
+        CONFIG_PATH.write_text(json.dumps(values), encoding="utf-8")
 
     def _start(self) -> None:
         values = {name: var.get().strip() for name, var in self._vars.items()}
@@ -102,7 +129,17 @@ class BatchBuddyMonitorApp(tk.Tk):
             messagebox.showerror("Missing connection details", "Enter the ActivitySmith key, Instacart token, cookies, and Shopper ID.")
             return
         self._save_config()
-        config = MonitorConfig(values["activitysmith"], values["auth"], values["cookies"], values["shopper"])
+        apns_values = {name: var.get().strip() for name, var in self._apns_vars.items()}
+        config = MonitorConfig(
+            activitysmith_api_key=values["activitysmith"],
+            auth_token=values["auth"],
+            cookies=values["cookies"],
+            shopper_id=values["shopper"],
+            live_activity_push_token=apns_values["push_token"],
+            apple_team_id=apns_values["team_id"],
+            apple_key_id=apns_values["key_id"],
+            apple_private_key_path=apns_values["private_key_path"],
+        )
         self._stop_event = threading.Event()
         monitor = BatchMonitor(config, on_batch=lambda result: self._events.put(("batch", result)), on_status=lambda message: self._events.put(("status", message)))
         self._thread = threading.Thread(target=monitor.run, args=(self._stop_event,), daemon=True)
@@ -125,11 +162,26 @@ class BatchBuddyMonitorApp(tk.Tk):
                 else:
                     result = payload
                     if isinstance(result, BatchResult):
-                        self.latest.set(f"{result.recommendation}\nPay ${result.pay:.2f}  •  {result.distance:.1f} km\nNet ${result.net_estimate:.2f}  •  ${result.hourly_estimate:.2f}/hr")
+                        self._history.record(result)
+                        self.latest.set(f"{result.recommendation}\nPay ${result.pay:.2f}  •  {result.distance:.1f} km  •  {result.items} items\nNet ${result.net_estimate:.2f}  •  ${result.hourly_estimate:.2f}/hr")
                         self.latest_label.configure(foreground="#5de3ff" if result.recommendation == "✅ ACCEPT" else "#ffb454")
+                        self._refresh_stats()
         except queue.Empty:
             pass
         self.after(250, self._drain_events)
+
+    def _mark_latest(self, status: str) -> None:
+        self._history.mark_latest(status)
+        self._refresh_stats()
+        self.status.set(f"Latest batch marked {status}.")
+
+    def _refresh_stats(self) -> None:
+        summary = self._history.summary()
+        self.stats.set(
+            f"Offers seen: {int(summary['offers'])}    Completed: {int(summary['completed'])}\n"
+            f"Gross: ${summary['gross']:.2f}    Net estimate: ${summary['net']:.2f}\n"
+            f"Distance: {summary['distance']:.1f} km    Avg completed rate: ${summary['average_hourly']:.2f}/hr"
+        )
 
     def _close(self) -> None:
         self._stop()

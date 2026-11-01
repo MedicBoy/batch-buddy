@@ -5,6 +5,8 @@ on:
   push:
     paths:
       - 'batch_monitor*.py'
+      - 'batch_history.py'
+      - 'apns_live_activity.py'
       - 'requirements.txt'
       - '.github/workflows/windows-monitor.yml'
 
