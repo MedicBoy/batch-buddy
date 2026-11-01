@@ -4,12 +4,62 @@ import Vision
 import ImageIO
 import ReplayKit
 import ActivityKit
+import PusherSwift
+import AVFoundation
 
 @main
 struct BatchBuddyApp: App { var body: some Scene { WindowGroup { ContentView() } } }
 
+// MARK: - PUSHER MANAGER
+class PusherManager: ObservableObject {
+    // ⚠️ PASTE YOUR PUSHER KEYS HERE!
+    private let pusherKey = "157cde463247a243cbbf" 
+    private let pusherCluster = "us2" 
+    
+    var pusher: Pusher!
+    
+    @Published var showPopup = false
+    @Published var pay = "$0.00"
+    @Published var distance = "0.0 km"
+    @Published var net = "$0.00"
+    @Published var hourly = "$0.00/hr"
+    @Published var recommendation = "CONSIDER"
+    
+    init() {
+        let options = PusherClientOptions(host: .cluster(pusherCluster))
+        pusher = Pusher(key: pusherKey, options: options)
+        
+        let channel = pusher.subscribe("batch-channel")
+        
+        _ = channel.bind(eventName: "new-batch", eventCallback: { (event: PusherEvent) in
+            if let data = event.data?.data(using: .utf8) {
+                do {
+                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        DispatchQueue.main.async {
+                            self.pay = json["pay"] as? String ?? "$0.00"
+                            self.distance = json["distance"] as? String ?? "0.0 km"
+                            self.net = json["net"] as? String ?? "$0.00"
+                            self.hourly = json["hourly"] as? String ?? "$0.00/hr"
+                            self.recommendation = json["recommendation"] as? String ?? "CONSIDER"
+                            
+                            AudioServicesPlaySystemSound(1005) 
+                            withAnimation { self.showPopup = true }
+                        }
+                    }
+                } catch { print("Error parsing JSON") }
+            }
+        })
+        pusher.connect()
+    }
+}
+
+// MARK: - MAIN VIEW
 struct ContentView: View {
     enum EntryField: Hashable { case pay, kilometres, items }
+    
+    // 👇 ADDED PUSHER MANAGER HERE
+    @StateObject var pusherManager = PusherManager()
+    
     @State private var pay = ""
     @State private var kilometres = ""
     @State private var items = ""
@@ -33,6 +83,7 @@ struct ContentView: View {
         NavigationStack {
             ZStack {
                 LinearGradient(colors: [Color(red: 0.02, green: 0.05, blue: 0.10), Color(red: 0.03, green: 0.13, blue: 0.16), Color(red: 0.02, green: 0.02, blue: 0.06)], startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea()
+                
                 ScrollView {
                     VStack(spacing: 16) {
                         header
@@ -47,6 +98,24 @@ struct ContentView: View {
                             .font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 4).padding(.bottom, 10)
                     }.padding(.horizontal, 16).padding(.vertical, 12)
                 }.scrollDismissesKeyboard(.interactively)
+                
+                // 👇 THE NEW POPUP OVERLAY
+                if pusherManager.showPopup {
+                    BatchAlertView(
+                        pay: pusherManager.pay,
+                        distance: pusherManager.distance,
+                        net: pusherManager.net,
+                        hourly: pusherManager.hourly,
+                        recommendation: pusherManager.recommendation,
+                        onAccept: {
+                            if let url = URL(string: "instacartshopper://") { UIApplication.shared.open(url) }
+                            pusherManager.showPopup = false
+                        },
+                        onIgnore: {
+                            pusherManager.showPopup = false
+                        }
+                    )
+                }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .principal) { Text("Batch Buddy").font(.headline.weight(.bold)) }; ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Done") { focusedField = nil } } }
