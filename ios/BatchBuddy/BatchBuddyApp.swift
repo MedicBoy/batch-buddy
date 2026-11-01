@@ -132,10 +132,7 @@ struct ContentView: View {
                     }
                     Spacer(minLength: 8)
                     BroadcastPickerButton()
-                        .frame(width: 76, height: 58)
-                        .background(.cyan.opacity(0.20), in: RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(.cyan.opacity(0.55), lineWidth: 1))
-                        .accessibilityLabel("Start Batch Buddy screen broadcast")
+                        .frame(width: 120, height: 48)
                 }
                 .padding(.top, 4)
             }
@@ -240,16 +237,53 @@ struct ContentView: View {
 }
 
 private struct BroadcastPickerButton: UIViewRepresentable {
-    func makeUIView(context: Context) -> RPSystemBroadcastPickerView {
-        let picker = RPSystemBroadcastPickerView(frame: .zero)
-        picker.preferredExtension = "com.batchbuddy.advisor.broadcast"
-        picker.showsMicrophoneButton = false
-        picker.tintColor = .white
-        picker.backgroundColor = .clear
-        return picker
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> UIButton {
+        let button = UIButton(type: .system)
+        button.setTitle("Start", for: .normal)
+        button.setImage(UIImage(systemName: "record.circle"), for: .normal)
+        button.tintColor = .white
+        button.setTitleColor(.white, for: .normal)
+        button.backgroundColor = .systemCyan
+        button.layer.cornerRadius = 14
+        button.titleLabel?.font = .preferredFont(forTextStyle: .headline)
+        button.addTarget(context.coordinator, action: #selector(Coordinator.startBroadcast), for: .touchUpInside)
+        button.accessibilityLabel = "Start Batch Buddy screen broadcast"
+        return button
     }
 
-    func updateUIView(_ uiView: RPSystemBroadcastPickerView, context: Context) {}
+    func updateUIView(_ uiView: UIButton, context: Context) {}
+
+    final class Coordinator: NSObject {
+        @objc func startBroadcast() {
+            RPBroadcastActivityViewController.load(withPreferredExtension: "com.batchbuddy.advisor.broadcast") { controller, _ in
+                guard let controller else { return }
+                DispatchQueue.main.async {
+                    Self.topViewController()?.present(controller, animated: true)
+                }
+            }
+        }
+
+        private static func topViewController(from root: UIViewController? = nil) -> UIViewController? {
+            let root = root ?? UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .first(where: { $0.activationState == .foregroundActive })?
+                .windows
+                .first(where: \.isKeyWindow)?
+                .rootViewController
+            if let presented = root?.presentedViewController {
+                return topViewController(from: presented)
+            }
+            if let navigation = root as? UINavigationController {
+                return topViewController(from: navigation.visibleViewController)
+            }
+            if let tab = root as? UITabBarController {
+                return topViewController(from: tab.selectedViewController)
+            }
+            return root
+        }
+    }
 }
 
 private struct PremiumCard<Content: View>: View { let background: AnyShapeStyle; let content: Content; init(@ViewBuilder content: () -> Content) { background = AnyShapeStyle(Color.white.opacity(0.08)); self.content = content() }; init<S: ShapeStyle>(background: S, @ViewBuilder content: () -> Content) { self.background = AnyShapeStyle(background); self.content = content() }; var body: some View { VStack(alignment: .leading, spacing: 12) { content }.padding(16).frame(maxWidth: .infinity, alignment: .leading).background(background, in: RoundedRectangle(cornerRadius: 22, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(.white.opacity(0.10), lineWidth: 1)) } }
