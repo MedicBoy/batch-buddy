@@ -144,6 +144,18 @@ def parse_offer_text(response_text: str) -> tuple[float | None, float | None, in
     return pay, distance, int(items) if items is not None else None
 
 
+def legacy_decimal_fallback(response_bytes: bytes) -> tuple[float | None, float | None, int | None]:
+    """Recover the old protobuf-text heuristic as a final compatibility layer."""
+    text = response_bytes.decode("utf-8", errors="ignore")
+    values = [float(value) for value in re.findall(r"\d+\.\d+", text)]
+    if len(values) < 2:
+        return None, None, None
+    pay = values[0] if 0 < values[0] <= 500 else None
+    distance = values[1] if 0 < values[1] <= 500 else None
+    items = int(round(values[2])) if len(values) >= 3 and 0 <= values[2] <= 250 else None
+    return pay, distance, items
+
+
 class BatchMonitor:
     def __init__(
         self,
@@ -195,7 +207,8 @@ class BatchMonitor:
                 self._status(f"Shopper returned a short empty response ({response_size} bytes); waiting for a batch.")
             return None
 
-        response_text = response.text
+        response_bytes = response.content
+        response_text = response_bytes.decode("utf-8", errors="ignore")
         numbers = re.findall(r"\d+(?:\.\d+)?", response_text)
         current_signature = ",".join(numbers)
         if current_signature == self._last_batch_signature:
@@ -203,6 +216,13 @@ class BatchMonitor:
         self._last_batch_signature = current_signature
 
         pay, distance, parsed_items = parse_offer_text(response_text)
+        if pay is None or distance is None or distance <= 0:
+            fallback_pay, fallback_distance, fallback_items = legacy_decimal_fallback(response_bytes)
+            if fallback_pay is not None and fallback_distance is not None:
+                pay = fallback_pay
+                distance = fallback_distance
+                parsed_items = fallback_items
+                self._status("Used legacy protobuf decimal fallback for the live Shopper offer.")
         if pay is None or distance is None or distance <= 0:
             self._status(f"Live response received, but offer fields were not recognized (response {len(response_text)} chars). Monitor is still running.")
             return None
