@@ -43,3 +43,9 @@ On a Mac with Xcode and an iOS 18+ test iPhone, create the native SwiftUI host a
 ## Planned live-offer and in-car work
 
 See [the live-offer and CarPlay roadmap](docs/LIVE-OFFERS-AND-CARPLAY-ROADMAP.md). CarPlay support is a feasibility question until Apple confirms the required category/entitlement; live screen assistance must be user-initiated and advisory-only.
+
+## Native calculation model
+
+The iPhone advisor now has a normalized `OfferInput` model with CAD and kilometres as its canonical units. The calculation entry point is independent of SwiftUI so the same logic can be called by manual entry, reviewed OCR results, and future interfaces if platform rules permit. Native XCTest coverage has been added for strong/weak offers, invalid numeric inputs, and zero-distance handling.
+
+These changes are on the `feature/carplay-and-live-offer-roadmap` branch and have not yet been built or tested on an Xcode runner. They do not add CarPlay entitlement or live screen capture.
