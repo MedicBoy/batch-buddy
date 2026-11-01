@@ -39,18 +39,23 @@ The current native app is not a CarPlay app and does not receive live Instacart 
 
 **Acceptance:** a user can deliberately start capture, see the capture state, confirm parsed values, stop capture, and use manual entry if capture is unavailable. No offer is accepted or rejected by Batch Buddy.
 
-### 3. CarPlay feasibility gate
+### 3. CarPlay widgets and Live Activities
 
-CarPlay is not a general-purpose mirror of an iPhone app. Apple limits CarPlay apps to approved categories and requires the relevant entitlement/approval. A batch-profit calculator is not obviously within an eligible category, so a native CarPlay dashboard must be treated as **unconfirmed**, not assumed buildable.
+Apple's iOS 26 developer guidance confirms that apps can surface supported small widgets and Live Activities in CarPlay without becoming a full CarPlay-category app. Live Activities appear in CarPlay Dashboard or as a notification, and CarPlay uses the small activity presentation. This is the chosen route for Batch Buddy's glanceable verdict display; a separate CarPlay app entitlement is not required for this Live Activity path.
 
-Before writing a CarPlay target:
-- Check Apple's current CarPlay app categories, entitlement process, and review requirements.
-- Confirm whether this app's actual purpose qualifies and whether Apple will grant the required entitlement.
-- Do not add a fake CarPlay target or claim CarPlay support without the entitlement and a working head-unit test.
+Implemented in the native branch:
+- A shared `BatchBuddyAttributes` ActivityKit model.
+- A WidgetKit extension with a CarPlay-sized Live Activity presentation.
+- Publishing the current TAKE / CONSIDER / SKIP result after the user analyzes an offer in the iPhone app.
+- The widget target is embedded in the iPhone app build.
 
-If Apple does not approve this use case, the fallback is an iPhone-first, glanceable parked-use dashboard plus permitted audio/notification cues. Do not encourage interaction while driving.
+Remaining validation:
+- Build the widget extension and IPA on the macOS CI runner.
+- Test the Live Activity on an iPhone running iOS 26 and confirm it appears in a real CarPlay session.
+- Verify the user's CarPlay Live Activity settings and dashboard behavior.
+- Keep the Live Activity glance-only; it does not accept or decline batches.
 
-**Acceptance:** CarPlay is only marked supported after entitlement approval, successful build, and real vehicle/head-unit testing. Otherwise document the limitation and ship the fallback.
+**Important limitation:** this implements the CarPlay display of a verdict after an offer is analyzed. It does not yet provide automatic Instacart offer detection. That remains a separate platform/API feasibility task.
 
 ### 4. Build and release
 
